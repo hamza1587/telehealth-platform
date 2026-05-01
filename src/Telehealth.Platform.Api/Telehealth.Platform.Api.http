@@ -1,0 +1,14 @@
+@Telehealth.Platform.Api_HostAddress = http://localhost:5131
+
+GET {{Telehealth.Platform.Api_HostAddress}}/platform/info
+Accept: application/json
+
+###
+
+GET {{Telehealth.Platform.Api_HostAddress}}/health/live
+Accept: application/json
+
+###
+
+GET {{Telehealth.Platform.Api_HostAddress}}/health/ready
+Accept: application/json

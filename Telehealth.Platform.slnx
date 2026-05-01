@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Telehealth.Platform.Api/Telehealth.Platform.Api.csproj" />
+    <Project Path="src/Telehealth.Platform.Application/Telehealth.Platform.Application.csproj" />
+    <Project Path="src/Telehealth.Platform.Domain/Telehealth.Platform.Domain.csproj" />
+    <Project Path="src/Telehealth.Platform.Infrastructure/Telehealth.Platform.Infrastructure.csproj" />
+    <Project Path="src/Telehealth.Platform.Integrations.Medplum/Telehealth.Platform.Integrations.Medplum.csproj" />
+  </Folder>
+</Solution>
