@@ -3,7 +3,8 @@ namespace Telehealth.Platform.Domain.Doctors;
 public enum DoctorMarketplaceStatus
 {
     Hidden = 1,
-    Available = 2,
-    TemporarilyUnavailable = 3,
-    Suspended = 4,
+    Active = 2,
+    Available = 3,
+    TemporarilyUnavailable = 4,
+    Suspended = 5,
 }

@@ -1,5 +1,5 @@
-using Telehealth.Platform.Application;
 using Telehealth.Platform.Api.Admin;
+using Telehealth.Platform.Api.Analytics;
 using Telehealth.Platform.Api.Appointments;
 using Telehealth.Platform.Api.Billing;
 using Telehealth.Platform.Api.Clinical;
@@ -10,16 +10,22 @@ using Telehealth.Platform.Api.Discovery;
 using Telehealth.Platform.Api.Doctors;
 using Telehealth.Platform.Api.Identity;
 using Telehealth.Platform.Api.InstantConsultation;
+using Telehealth.Platform.Api.Middleware;
 using Telehealth.Platform.Api.Notifications;
 using Telehealth.Platform.Api.Patients;
 using Telehealth.Platform.Api.Prescriptions;
+using Telehealth.Platform.Api.Reviews;
 using Telehealth.Platform.Api.Research;
 using Telehealth.Platform.Api.Support;
 using Telehealth.Platform.Api.Wallets;
+using Telehealth.Platform.Infrastructure.Performance;
+using Telehealth.Platform.Application;
 using Telehealth.Platform.Infrastructure;
+using Telehealth.Platform.Infrastructure.Health;
 using Telehealth.Platform.Infrastructure.Identity;
 using Telehealth.Platform.Infrastructure.Persistence;
 using Telehealth.Platform.Integrations.Medplum;
+using Telehealth.Platform.Integrations.Medplum.Health;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +40,11 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod();
     });
 });
+
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready", "database" })
+    .AddCheck<MedplumHealthCheck>("medplum", tags: new[] { "ready", "external" })
+    .AddCheck<RedisHealthCheck>("redis", tags: new[] { "ready", "cache" });
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -58,7 +69,9 @@ using (var scope = app.Services.CreateScope())
 app.UseHttpsRedirection();
 app.UseCors("WebClient");
 
-// Authentication & Authorization middleware
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<ResponseCachingMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -80,12 +93,7 @@ health.MapGet("/live", () => Results.Ok(new
     checkedAt = DateTimeOffset.UtcNow
 }));
 
-health.MapGet("/ready", () => Results.Ok(new
-{
-    status = "Ready",
-    dependencies = new[] { "Medplum", "Database", "Payments", "Video" },
-    checkedAt = DateTimeOffset.UtcNow
-}));
+health.MapHealthChecks("/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions());
 
 app.MapAuthenticationEndpoints();
 app.MapPatientEndpoints();
@@ -105,7 +113,12 @@ app.MapSupportEndpoints();
 app.MapNotificationsEndpoints();
 app.MapAdminEndpoints();
 app.MapGdprEndpoints();
+app.MapReviewEndpoints();
+app.MapGroup("/api").MapAnalyticsEndpoints();
+app.MapGroup("/api").MapTeleconsultationEndpoints();
 app.MapResearchExportEndpoints();
+app.MapDeviceEndpoints();
+app.MapSessionEndpoints();
 
 // Protected endpoint examples using authorization policies
 var admin = app.MapGroup("/admin").RequireAuthorization("RequireAdmin").WithTags("Admin");

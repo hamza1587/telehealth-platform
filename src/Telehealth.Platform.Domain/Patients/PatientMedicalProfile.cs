@@ -109,4 +109,54 @@ public sealed class PatientMedicalProfile : Entity<Guid>
     public DateTimeOffset CreatedAt { get; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
+
+    public void Update(
+        DateOnly dateOfBirth,
+        string sexAtBirth,
+        string phoneNumber,
+        string countryCode,
+        string city,
+        string timeZone,
+        string emergencyContactName,
+        string emergencyContactPhone,
+        string emergencyContactRelationship,
+        string chiefConcern,
+        string symptoms,
+        string symptomDuration,
+        string currentMedications,
+        string allergies,
+        string knownConditions,
+        string pastSurgeries,
+        string pregnancyStatus,
+        string lifestyleFactors,
+        string preferredConsultationLanguage,
+        string urgencyLevel,
+        bool emergencySymptoms,
+        bool medicalDisclaimerAccepted,
+        DateTimeOffset updatedAt)
+    {
+        DateOfBirth = dateOfBirth;
+        SexAtBirth = sexAtBirth;
+        PhoneNumber = phoneNumber;
+        CountryCode = countryCode;
+        City = city;
+        TimeZone = timeZone;
+        EmergencyContactName = emergencyContactName;
+        EmergencyContactPhone = emergencyContactPhone;
+        EmergencyContactRelationship = emergencyContactRelationship;
+        ChiefConcern = chiefConcern;
+        Symptoms = symptoms;
+        SymptomDuration = symptomDuration;
+        CurrentMedications = currentMedications;
+        Allergies = allergies;
+        KnownConditions = knownConditions;
+        PastSurgeries = pastSurgeries;
+        PregnancyStatus = pregnancyStatus;
+        LifestyleFactors = lifestyleFactors;
+        PreferredConsultationLanguage = preferredConsultationLanguage;
+        UrgencyLevel = urgencyLevel;
+        EmergencySymptoms = emergencySymptoms;
+        MedicalDisclaimerAccepted = medicalDisclaimerAccepted;
+        UpdatedAt = updatedAt;
+    }
 }

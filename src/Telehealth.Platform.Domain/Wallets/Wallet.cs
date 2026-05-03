@@ -2,25 +2,49 @@ using Telehealth.Platform.Domain.Common;
 
 namespace Telehealth.Platform.Domain.Wallets;
 
-public sealed class Wallet : Entity<Guid>
+public class Wallet : Entity<Guid>
 {
-    public Wallet(Guid id, Guid patientAccountId, string currency)
-        : base(id)
+    public Guid PatientAccountId { get; private set; }
+
+    public long BalanceMinor { get; private set; }
+
+    public string Currency { get; private set; } = "USD";
+
+    public DateTimeOffset CreatedAt { get; private set; }
+
+    public DateTimeOffset UpdatedAt { get; private set; }
+
+    private Wallet(Guid id, Guid patientAccountId) : base(id)
     {
         PatientAccountId = patientAccountId;
-        Currency = currency;
-        Status = WalletStatus.Active;
+        BalanceMinor = 0;
+        CreatedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public Guid PatientAccountId { get; }
+    public static Wallet Create(Guid patientAccountId)
+    {
+        return new Wallet(Guid.NewGuid(), patientAccountId);
+    }
 
-    public string Currency { get; }
+    public void AddCredit(long amountMinor)
+    {
+        BalanceMinor += amountMinor;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
 
-    public long AvailableSeconds { get; private set; }
+    public bool HasSufficientFunds(long amountMinor)
+    {
+        return BalanceMinor >= amountMinor;
+    }
 
-    public long ReservedSeconds { get; private set; }
+    public bool Deduct(long amountMinor)
+    {
+        if (!HasSufficientFunds(amountMinor))
+            return false;
 
-    public WalletStatus Status { get; private set; }
-
-    public bool CanReserve(long seconds) => Status == WalletStatus.Active && seconds > 0 && AvailableSeconds >= seconds;
+        BalanceMinor -= amountMinor;
+        UpdatedAt = DateTimeOffset.UtcNow;
+        return true;
+    }
 }

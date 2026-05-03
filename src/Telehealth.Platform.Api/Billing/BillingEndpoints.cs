@@ -51,8 +51,8 @@ public static class BillingEndpoints
                 "Dr. Jane Smith",
                 "Cardiology",
                 new MoneyDto(450m, "EUR"),
-                BillingStatus.Paid,
-                DateTimeOffset.UtcNow.AddDays(-2),
+            BillingStatus.Completed,
+            DateTimeOffset.UtcNow.AddDays(-2),
                 DateTimeOffset.UtcNow.AddDays(-2),
                 1800)
         };
@@ -84,7 +84,7 @@ public static class BillingEndpoints
             new MoneyDto(20m, "EUR"),
             new MoneyDto(700m, "EUR"),
             new MoneyDto(900m, "EUR"),
-            BillingStatus.Paid,
+            BillingStatus.Completed,
             "Credit Card",
             "txn_123456",
             DateTimeOffset.UtcNow.AddDays(-2),
@@ -190,7 +190,7 @@ public static class BillingEndpoints
                 Guid.NewGuid(),
                 "Dr. Jane Smith",
                 new MoneyDto(900m, "EUR"),
-                BillingStatus.Paid,
+                BillingStatus.Completed,
                 DateTimeOffset.UtcNow.AddDays(-2),
                 "Credit Card")
         };

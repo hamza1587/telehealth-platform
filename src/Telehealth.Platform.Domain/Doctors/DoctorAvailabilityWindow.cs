@@ -1,37 +1,50 @@
 using Telehealth.Platform.Domain.Common;
-using Telehealth.Platform.Domain.Consultations;
 
 namespace Telehealth.Platform.Domain.Doctors;
 
-public sealed class DoctorAvailabilityWindow : Entity<Guid>
+public class DoctorAvailabilityWindow : Entity<Guid>
 {
-    public DoctorAvailabilityWindow(
+    public Guid DoctorProfileId { get; private set; }
+    public DateTimeOffset StartsAt { get; private set; }
+    public DateTimeOffset EndsAt { get; private set; }
+    public string ConsultationMode { get; private set; } = string.Empty;
+    public bool IsInstantEnabled { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
+
+    private DoctorAvailabilityWindow(
         Guid id,
         Guid doctorProfileId,
         DateTimeOffset startsAt,
         DateTimeOffset endsAt,
-        ConsultationMode consultationMode,
-        bool isInstantEnabled,
-        DateTimeOffset createdAt)
-        : base(id)
+        string consultationMode,
+        bool isInstantEnabled) : base(id)
     {
         DoctorProfileId = doctorProfileId;
         StartsAt = startsAt;
         EndsAt = endsAt;
         ConsultationMode = consultationMode;
         IsInstantEnabled = isInstantEnabled;
-        CreatedAt = createdAt;
+        CreatedAt = DateTimeOffset.UtcNow;
     }
 
-    public Guid DoctorProfileId { get; }
+    public static DoctorAvailabilityWindow Create(
+        Guid doctorProfileId,
+        DateTimeOffset startsAt,
+        DateTimeOffset endsAt,
+        string consultationMode,
+        bool isInstantEnabled = false)
+    {
+        return new DoctorAvailabilityWindow(
+            Guid.NewGuid(),
+            doctorProfileId,
+            startsAt,
+            endsAt,
+            consultationMode,
+            isInstantEnabled);
+    }
 
-    public DateTimeOffset StartsAt { get; }
-
-    public DateTimeOffset EndsAt { get; }
-
-    public ConsultationMode ConsultationMode { get; }
-
-    public bool IsInstantEnabled { get; }
-
-    public DateTimeOffset CreatedAt { get; }
+    public bool IsWithinWindow(DateTimeOffset dateTime)
+    {
+        return dateTime >= StartsAt && dateTime <= EndsAt;
+    }
 }

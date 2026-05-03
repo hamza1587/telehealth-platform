@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using Telehealth.Platform.Domain.Common;
 using Telehealth.Platform.Domain.Consultations;
 
 namespace Telehealth.Platform.Api.Appointments;

@@ -1,0 +1,58 @@
+groups:
+  - name: telehealth-platform.rules
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: High error rate detected
+          description: "{{ $value }}% of requests are failing with 5xx errors"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: High latency detected
+          description: "95th percentile latency is {{ $value }} seconds"
+
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Database is down
+          description: "PostgreSQL database is not responding"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Redis is down
+          description: "Redis cache is not responding"
+
+  - name: telehealth-platform.alerts
+    rules:
+      - alert: LowMemory
+        expr: kube_pod_container_resource_usage{container="telehealth-api"} > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Low memory
+          description: "Memory usage is above 90%"
+
+      - alert: HighCPU
+        expr: rate(container_cpu_usage_seconds_total{container="telehealth-api"}[5m]) > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: High CPU usage
+          description: "CPU usage is above 80%"

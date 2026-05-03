@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using Telehealth.Platform.Domain.Common;
 using Telehealth.Platform.Domain.Consultations;
 using Telehealth.Platform.Domain.InstantConsultation;
 
@@ -47,7 +48,7 @@ public static class InstantConsultationEndpoints
             request.PreferredMode,
             request.MaxPricePerSecond,
             request.Currency,
-            QueueStatus.Waiting,
+            QueueEntryStatus.Waiting,
             0,
             DateTimeOffset.UtcNow,
             null,
@@ -75,7 +76,7 @@ public static class InstantConsultationEndpoints
         var status = new QueueStatusDto(
             true,
             Guid.NewGuid(),
-            QueueStatus.Matched,
+            QueueEntryStatus.Matched,
             0,
             5,
             DateTimeOffset.UtcNow.AddMinutes(2),
@@ -283,7 +284,7 @@ public record QueueEntryDto(
     ConsultationMode PreferredMode,
     decimal MaxPricePerSecond,
     string Currency,
-    QueueStatus Status,
+    QueueEntryStatus Status,
     int Priority,
     DateTimeOffset QueuedAt,
     DateTimeOffset? MatchedAt,
@@ -293,7 +294,7 @@ public record QueueEntryDto(
 public record QueueStatusDto(
     bool IsInQueue,
     Guid? QueueEntryId,
-    QueueStatus Status,
+    QueueEntryStatus Status,
     int Position,
     int? EstimatedWaitMinutes,
     DateTimeOffset? MatchExpiresAt,

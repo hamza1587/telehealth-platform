@@ -2,71 +2,95 @@ using Telehealth.Platform.Domain.Common;
 
 namespace Telehealth.Platform.Domain.Doctors;
 
-public sealed class DoctorProfile : Entity<Guid>
+public class DoctorProfile : Entity<Guid>
 {
-    public DoctorProfile(
+    public Guid MedplumPractitionerId { get; private set; }
+    public string DisplayName { get; private set; } = string.Empty;
+    public string CountryCode { get; private set; } = string.Empty;
+    public string PrimarySpecialty { get; private set; } = string.Empty;
+    public DoctorVerificationStatus VerificationStatus { get; private set; } = DoctorVerificationStatus.Draft;
+    public DoctorMarketplaceStatus MarketplaceStatus { get; private set; } = DoctorMarketplaceStatus.Hidden;
+    public int DefaultPricePerSecondMinor { get; private set; }
+    public string Currency { get; private set; } = "USD";
+    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset UpdatedAt { get; private set; }
+
+    public long PricePerSecond => DefaultPricePerSecondMinor;
+
+    private DoctorProfile(
         Guid id,
-        string medplumPractitionerId,
+        Guid medplumPractitionerId,
         string displayName,
         string countryCode,
         string primarySpecialty,
-        Money pricePerSecond,
-        DoctorVerificationStatus verificationStatus,
-        DoctorMarketplaceStatus marketplaceStatus,
-        DateTimeOffset createdAt,
-        DateTimeOffset updatedAt)
-        : base(id)
+        int defaultPricePerSecondMinor,
+        string currency) : base(id)
     {
         MedplumPractitionerId = medplumPractitionerId;
         DisplayName = displayName;
         CountryCode = countryCode;
         PrimarySpecialty = primarySpecialty;
-        PricePerSecond = pricePerSecond;
-        VerificationStatus = verificationStatus;
-        MarketplaceStatus = marketplaceStatus;
-        CreatedAt = createdAt;
-        UpdatedAt = updatedAt;
+        DefaultPricePerSecondMinor = defaultPricePerSecondMinor;
+        Currency = currency;
+        CreatedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public string MedplumPractitionerId { get; }
-
-    public string DisplayName { get; private set; }
-
-    public string CountryCode { get; private set; }
-
-    public string PrimarySpecialty { get; private set; }
-
-    public Money PricePerSecond { get; private set; }
-
-    public DoctorVerificationStatus VerificationStatus { get; private set; }
-
-    public DoctorMarketplaceStatus MarketplaceStatus { get; private set; }
-
-    public DateTimeOffset CreatedAt { get; }
-
-    public DateTimeOffset UpdatedAt { get; private set; }
-
-    public void UpdateProfile(
+    public static DoctorProfile Create(
+        Guid medplumPractitionerId,
         string displayName,
         string countryCode,
         string primarySpecialty,
-        Money pricePerSecond,
-        DateTimeOffset updatedAt)
+        int defaultPricePerSecondMinor,
+        string currency = "USD")
+    {
+        return new DoctorProfile(
+            Guid.NewGuid(),
+            medplumPractitionerId,
+            displayName,
+            countryCode,
+            primarySpecialty,
+            defaultPricePerSecondMinor,
+            currency);
+    }
+
+    public void UpdateProfile(string displayName, string countryCode, string primarySpecialty, int defaultPricePerSecondMinor, string currency)
     {
         DisplayName = displayName;
         CountryCode = countryCode;
         PrimarySpecialty = primarySpecialty;
-        PricePerSecond = pricePerSecond;
-        UpdatedAt = updatedAt;
+        DefaultPricePerSecondMinor = defaultPricePerSecondMinor;
+        Currency = currency;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public void UpdateVerificationStatus(
-        DoctorVerificationStatus verificationStatus,
-        DoctorMarketplaceStatus marketplaceStatus,
-        DateTimeOffset updatedAt)
+    public void SubmitForVerification()
     {
-        VerificationStatus = verificationStatus;
-        MarketplaceStatus = marketplaceStatus;
-        UpdatedAt = updatedAt;
+        VerificationStatus = DoctorVerificationStatus.Submitted;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void ApproveVerification()
+    {
+        VerificationStatus = DoctorVerificationStatus.Verified;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void RejectVerification()
+    {
+        VerificationStatus = DoctorVerificationStatus.Rejected;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void UpdateMarketplaceStatus(DoctorMarketplaceStatus status)
+    {
+        MarketplaceStatus = status;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void UpdateVerificationStatus(DoctorVerificationStatus status)
+    {
+        VerificationStatus = status;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 }

@@ -66,16 +66,18 @@ public sealed class PlatformFeeStructure : Entity<Guid>
 
     public FeeCalculation CalculateFees(Money baseAmount, string paymentMethod)
     {
-        var platformFee = new Money(baseAmount.Amount * BasePlatformFeePercent / 100, baseAmount.Currency);
+        var platformFeeMinorUnits = (long)(baseAmount.MinorUnits * BasePlatformFeePercent / 100);
+        var platformFee = new Money(platformFeeMinorUnits, baseAmount.Currency);
 
-        var processingFee = PaymentProcessingFeePercent.HasValue
-            ? new Money(baseAmount.Amount * PaymentProcessingFeePercent.Value / 100, baseAmount.Currency)
-            : new Money(0, baseAmount.Currency);
+        var processingFeeMinorUnits = PaymentProcessingFeePercent.HasValue
+            ? (long)(baseAmount.MinorUnits * PaymentProcessingFeePercent.Value / 100)
+            : 0L;
+        var processingFee = new Money(processingFeeMinorUnits, baseAmount.Currency);
 
-        var fixedFee = FixedFeePerConsultation ?? new Money(0, baseAmount.Currency);
+        var fixedFee = FixedFeePerConsultation ?? Money.Zero(baseAmount.Currency);
 
-        var totalPlatformFees = new Money(platformFee.Amount + processingFee.Amount + fixedFee.Amount, baseAmount.Currency);
-        var doctorPayout = new Money(baseAmount.Amount - totalPlatformFees.Amount, baseAmount.Currency);
+        var totalPlatformFees = new Money(platformFee.MinorUnits + processingFee.MinorUnits + fixedFee.MinorUnits, baseAmount.Currency);
+        var doctorPayout = new Money(baseAmount.MinorUnits - totalPlatformFees.MinorUnits, baseAmount.Currency);
 
         return new FeeCalculation(
             baseAmount,
@@ -94,8 +96,3 @@ public readonly record struct FeeCalculation(
     Money FixedFee,
     Money TotalPlatformFees,
     Money DoctorPayout);
-
-public readonly record struct Money(decimal Amount, string Currency)
-{
-    public static Money Zero(string currency) => new(0, currency);
-}

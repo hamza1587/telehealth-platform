@@ -84,29 +84,17 @@ public sealed class DoctorPricing : Entity<Guid>
             _ => null
         };
 
-        var total = surcharge.HasValue
-            ? new Money(basePrice.Amount + surcharge.Value.Amount, basePrice.Currency)
-            : basePrice;
-
-        if (isInstant && IsInstantConsultationEnabled && InstantConsultationPremium.HasValue)
+        var totalMinorUnits = basePrice.MinorUnits;
+        if (surcharge is { } s)
         {
-            total = new Money(total.Amount + InstantConsultationPremium.Value.Amount, total.Currency);
+            totalMinorUnits += s.MinorUnits;
         }
 
-        return total;
+        if (isInstant && IsInstantConsultationEnabled && InstantConsultationPremium is { } p)
+        {
+            totalMinorUnits += p.MinorUnits;
+        }
+
+        return new Money(totalMinorUnits, basePrice.Currency);
     }
-}
-
-public enum ConsultationMode
-{
-    Video,
-    Phone,
-    Text,
-    InPerson
-}
-
-public readonly record struct Money(decimal Amount, string Currency)
-{
-    public static Money Zero(string currency) => new(0, currency);
-    public static Money EUR(decimal amount) => new(amount, "EUR");
 }

@@ -51,7 +51,7 @@ public static class ResearchExportEndpoints
             request.Format,
             request.DateRangeFrom,
             request.DateRangeTo,
-            ResearchExportStatus.PendingApproval,
+            ResearchExportStatus.Pending,
             DateTimeOffset.UtcNow,
             null,
             null);
@@ -79,7 +79,7 @@ public static class ResearchExportEndpoints
                 "Telehealth Usage Patterns",
                 "Consultations",
                 "Anonymized",
-                ResearchExportStatus.Approved,
+                ResearchExportStatus.Completed,
                 15420,
                 DateTimeOffset.UtcNow.AddDays(-5))
         };
@@ -107,8 +107,9 @@ public static class ResearchExportEndpoints
             "CSV",
             DateTimeOffset.UtcNow.AddYears(-1),
             DateTimeOffset.UtcNow,
-            ResearchExportStatus.Ready,
+            ResearchExportStatus.Completed,
             DateTimeOffset.UtcNow.AddDays(-5),
+            DateTimeOffset.UtcNow.AddDays(-2),
             DateTimeOffset.UtcNow.AddDays(-2),
             "Compliance Officer",
             15420,
@@ -154,7 +155,7 @@ public static class ResearchExportEndpoints
                 "IRB-2024-001",
                 "Consultations",
                 "Anonymized",
-                ResearchExportStatus.PendingApproval,
+                ResearchExportStatus.Pending,
                 DateTimeOffset.UtcNow.AddHours(-4),
                 null,
                 null)
@@ -170,7 +171,7 @@ public static class ResearchExportEndpoints
         return Results.Ok(new
         {
             ExportId = exportId,
-            Status = ResearchExportStatus.Approved,
+            Status = ResearchExportStatus.Processing,
             ApprovedBy = request.ApprovedBy,
             ApprovedAt = DateTimeOffset.UtcNow,
             Conditions = request.Conditions
@@ -184,7 +185,7 @@ public static class ResearchExportEndpoints
         return Results.Ok(new
         {
             ExportId = exportId,
-            Status = ResearchExportStatus.Rejected,
+            Status = ResearchExportStatus.Failed,
             Reason = request.Reason,
             RejectedAt = DateTimeOffset.UtcNow
         });

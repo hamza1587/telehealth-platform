@@ -37,33 +37,31 @@ internal sealed class PatientOnboardingService : IPatientOnboardingService
 
             if (existingProfile != null)
             {
-                // Update existing profile
-                existingProfile = existingProfile with
-                {
-                    DateOfBirth = request.DateOfBirth,
-                    SexAtBirth = request.SexAtBirth,
-                    PhoneNumber = request.PhoneNumber,
-                    CountryCode = request.CountryCode,
-                    City = request.City,
-                    TimeZone = request.TimeZone,
-                    EmergencyContactName = request.EmergencyContactName,
-                    EmergencyContactPhone = request.EmergencyContactPhone,
-                    EmergencyContactRelationship = request.EmergencyContactRelationship,
-                    ChiefConcern = request.ChiefConcern,
-                    Symptoms = request.Symptoms,
-                    SymptomDuration = request.SymptomDuration,
-                    CurrentMedications = request.CurrentMedications,
-                    Allergies = request.Allergies,
-                    KnownConditions = request.KnownConditions,
-                    PastSurgeries = request.PastSurgeries,
-                    PregnancyStatus = request.PregnancyStatus,
-                    LifestyleFactors = request.LifestyleFactors,
-                    PreferredConsultationLanguage = request.PreferredConsultationLanguage,
-                    UrgencyLevel = request.UrgencyLevel,
-                    EmergencySymptoms = request.EmergencySymptoms,
-                    MedicalDisclaimerAccepted = request.MedicalDisclaimerAccepted,
-                    UpdatedAt = DateTimeOffset.UtcNow
-                };
+                existingProfile.Update(
+                    request.DateOfBirth,
+                    request.SexAtBirth,
+                    request.PhoneNumber,
+                    request.CountryCode,
+                    request.City,
+                    request.TimeZone,
+                    request.EmergencyContactName,
+                    request.EmergencyContactPhone,
+                    request.EmergencyContactRelationship,
+                    request.ChiefConcern,
+                    request.Symptoms,
+                    request.SymptomDuration,
+                    request.CurrentMedications,
+                    request.Allergies,
+                    request.KnownConditions,
+                    request.PastSurgeries,
+                    request.PregnancyStatus,
+                    request.LifestyleFactors,
+                    request.PreferredConsultationLanguage,
+                    request.UrgencyLevel,
+                    request.EmergencySymptoms,
+                    request.MedicalDisclaimerAccepted,
+                    DateTimeOffset.UtcNow
+                );
 
                 _dbContext.PatientMedicalProfiles.Update(existingProfile);
                 await _dbContext.SaveChangesAsync(cancellationToken);

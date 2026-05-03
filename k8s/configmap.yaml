@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telehealth-config
+  namespace: telehealth
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  PlatformDatabase__Host: "postgres.telehealth.svc.cluster.local"
+  PlatformDatabase__Port: "5432"
+  PlatformDatabase__Database: "telehealth_platform"
+  PlatformDatabase__Username: "telehealth"
+  Redis__Configuration: "redis-master.telehealth.svc.cluster.local:6379"
+  Redis__Enabled: "true"
+  Jitsi__Domain: "meet.jit.si"
+  Jitsi__AppId: "telehealth-platform"
+  Jwt__Issuer: "TelehealthPlatform"
+  Jwt__Audience: "TelehealthApi"
+  Security__MaxFailedLoginAttempts: "5"
+  Security__LockoutDurationMinutes: "30"
+  Security__PasswordMinLength: "12"
+  Security__RequireMfaForDoctors: "true"
+  Security__RequireMfaForAdmins: "true"
+  Security__SessionTimeoutMinutes: "60"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: telehealth-secrets
+  namespace: telehealth
+type: Opaque
+data:
+  PlatformDatabase__Password: "dGVsZWhhbHRoX3NlY3VyZV9wYXNzd29yZA=="
+  Redis__Password: "Ijpjb25uZWN0aW9ucy1wYXNzd29yZA=="
+  Jwt__SecretKey: "eW91ci1wcm9kdXJjaGlvbi1zZWNyZXQta2V5LWNoYW5nZS1pbi1wcm9kdWN0aW9u"
+  Medplum__ClientId: "Y2xpZW50LWlkLWZvci1tZWRwdWxtLWNsb3VkLWF1dGhlbnRpY2F0aW9u"
+  Medplum__ClientSecret: "Y2xpZW50LXNlY3JldC1mb3ItbWVkcGx1bS1jbG91ZC1hdXRoZW50aWNhdGlvbg=="

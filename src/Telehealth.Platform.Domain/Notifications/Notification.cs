@@ -2,132 +2,102 @@ using Telehealth.Platform.Domain.Common;
 
 namespace Telehealth.Platform.Domain.Notifications;
 
-/// <summary>
-/// Notification to be sent to users across multiple channels.
-/// </summary>
-public sealed class Notification : Entity<Guid>
+public enum NotificationType
 {
-    public Notification(
-        Guid id,
-        Guid? userId,
-        string userType,
-        string notificationType,
-        string title,
-        string message,
-        string? actionUrl,
-        object? data,
-        NotificationPriority priority,
-        DateTimeOffset createdAt)
-        : base(id)
-    {
-        UserId = userId;
-        UserType = userType;
-        NotificationType = notificationType;
-        Title = title;
-        Message = message;
-        ActionUrl = actionUrl;
-        Data = data;
-        Priority = priority;
-        Status = NotificationStatus.Pending;
-        Channels = new List<NotificationChannel>();
-        CreatedAt = createdAt;
-        ScheduledFor = createdAt;
-    }
-
-    public Guid? UserId { get; }
-    public string UserType { get; }
-    public string NotificationType { get; }
-    public string Title { get; }
-    public string Message { get; }
-    public string? ActionUrl { get; }
-    public object? Data { get; }
-    public NotificationPriority Priority { get; }
-    public NotificationStatus Status { get; private set; }
-    public List<NotificationChannel> Channels { get; }
-    public DateTimeOffset CreatedAt { get; }
-    public DateTimeOffset ScheduledFor { get; private set; }
-    public DateTimeOffset? SentAt { get; private set; }
-    public DateTimeOffset? ReadAt { get; private set; }
-
-    public void ScheduleFor(DateTimeOffset scheduledFor)
-    {
-        ScheduledFor = scheduledFor;
-    }
-
-    public void MarkAsSent(DateTimeOffset sentAt)
-    {
-        Status = NotificationStatus.Sent;
-        SentAt = sentAt;
-    }
-
-    public void MarkAsFailed(string reason, DateTimeOffset failedAt)
-    {
-        Status = NotificationStatus.Failed;
-    }
-
-    public void MarkAsRead(DateTimeOffset readAt)
-    {
-        ReadAt = readAt;
-    }
-
-    public void AddChannel(NotificationChannel channel)
-    {
-        Channels.Add(channel);
-    }
-
-    public bool ShouldSendNow(DateTimeOffset now)
-    {
-        return Status == NotificationStatus.Pending && ScheduledFor <= now;
-    }
-}
-
-public enum NotificationChannel
-{
-    InApp,
-    Email,
-    Push,
-    Sms,
-    WebSocket
+    Info,
+    Warning,
+    Error,
+    Success
 }
 
 public enum NotificationStatus
 {
     Pending,
-    Sending,
     Sent,
-    Delivered,
-    Read,
     Failed,
-    Cancelled
+    Read
 }
 
-public enum NotificationPriority
+public class Notification : Entity<Guid>
 {
-    Low,
-    Normal,
-    High,
-    Urgent
-}
+    public Guid RecipientId { get; private set; }
 
-public enum NotificationType
-{
-    AppointmentReminder,
-    AppointmentConfirmed,
-    AppointmentCancelled,
-    ConsultationStarting,
-    ConsultationEnded,
-    PrescriptionReady,
-    PaymentReceived,
-    PaymentFailed,
-    RefundProcessed,
-    DayPassExpiring,
-    DayPassExpired,
-    WalletLowBalance,
-    NewMessage,
-    VerificationApproved,
-    VerificationRejected,
-    SystemMaintenance,
-    PasswordChanged,
-    NewDeviceLogin,
-    Welcome
+    public string RecipientType { get; private set; } = string.Empty;
+
+    public NotificationType Type { get; private set; }
+
+    public string Title { get; private set; } = string.Empty;
+
+    public string Message { get; private set; } = string.Empty;
+
+    public NotificationStatus Status { get; private set; } = NotificationStatus.Pending;
+
+    public DateTimeOffset CreatedAt { get; private set; }
+
+    public DateTimeOffset? SentAt { get; private set; }
+
+    public DateTimeOffset? ReadAt { get; private set; }
+
+    public string? RelatedEntity { get; private set; }
+
+    public Guid? RelatedEntityId { get; private set; }
+
+    public Dictionary<string, object>? Metadata { get; private set; }
+
+    private Notification(
+        Guid id,
+        Guid recipientId,
+        NotificationType type,
+        string title,
+        string message) : base(id)
+    {
+        RecipientId = recipientId;
+        Type = type;
+        Title = title;
+        Message = message;
+        CreatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public static Notification Create(
+        Guid recipientId,
+        NotificationType type,
+        string title,
+        string message,
+        string? recipientType = null)
+    {
+        var notification = new Notification(Guid.NewGuid(), recipientId, type, title, message)
+        {
+            RecipientType = recipientType ?? string.Empty
+        };
+
+        return notification;
+    }
+
+    public void MarkAsSent()
+    {
+        Status = NotificationStatus.Sent;
+        SentAt = DateTimeOffset.UtcNow;
+    }
+
+    public void MarkAsRead()
+    {
+        Status = NotificationStatus.Read;
+        ReadAt = DateTimeOffset.UtcNow;
+    }
+
+    public void MarkAsFailed()
+    {
+        Status = NotificationStatus.Failed;
+    }
+
+    public void SetRelatedEntity(string entity, Guid entityId)
+    {
+        RelatedEntity = entity;
+        RelatedEntityId = entityId;
+    }
+
+    public void SetMetadata(Dictionary<string, object> metadata)
+    {
+        Metadata = metadata;
+    }
 }

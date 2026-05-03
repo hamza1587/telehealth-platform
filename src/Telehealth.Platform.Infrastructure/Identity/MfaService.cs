@@ -1,53 +1,138 @@
-using OtpNet;
 using System.Security.Cryptography;
-using System.Text;
+using Microsoft.Extensions.Logging;
+using OtpNet;
 using Telehealth.Platform.Application.Abstractions.Identity;
+using Telehealth.Platform.Domain.Identity;
 
 namespace Telehealth.Platform.Infrastructure.Identity;
 
 /// <summary>
-/// TOTP-based Multi-Factor Authentication service.
-/// Implements RFC 6238 (TOTP) and generates recovery codes.
+/// Implementation of MFA service using TOTP (Time-based One-Time Password).
 /// </summary>
-public sealed class MfaService : IMfaService
+public class MfaService : IMfaService
 {
-    // TOTP settings
-    private const int TotpStep = 30; // 30-second time step
-    private const int TotpDigits = 6;  // 6-digit codes
-    private const OtpHashMode TotpMode = OtpHashMode.Sha512;
+    private readonly ILogger<MfaService> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the MfaService.
+    /// </summary>
+    /// <param name="logger">Logger instance.</param>
+    public MfaService(ILogger<MfaService> logger)
+    {
+        _logger = logger;
+    }
+
+    /// <inheritdoc/>
+    public Task<string> GetQrCodeUriAsync(PlatformUser user, CancellationToken cancellationToken = default)
+    {
+        var secretKey = user.MfaSecretKey ?? string.Empty;
+        var issuer = "Telehealth Platform";
+        var label = $"{issuer}:{user.Email}";
+        var uri = $"otpauth://totp/{Uri.EscapeDataString(label)}?secret={secretKey}&issuer={Uri.EscapeDataString(issuer)}";
+        return Task.FromResult(uri);
+    }
+
+    /// <inheritdoc/>
     public string GenerateSecretKey()
     {
-        // Generate a 256-bit (32 byte) random secret
-        var key = KeyGeneration.GenerateRandomKey(32);
-        return Base32Encoding.ToString(key);
+        var bytes = new byte[20];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(bytes);
+        return Base32Encoding.ToString(bytes);
     }
 
-    public string GenerateQrCodeUri(string secretKey, string email, string issuer = "Telehealth Platform")
+    /// <inheritdoc/>
+    public string GenerateQrCodeUri(string secretKey, string email)
     {
-        // Generate the otpauth URI for QR code generation
-        // Format: otpauth://totp/{issuer}:{email}?secret={secret}&issuer={issuer}&algorithm=SHA512&digits=6&period=30
-        var encodedIssuer = Uri.EscapeDataString(issuer);
-        var encodedEmail = Uri.EscapeDataString(email);
-
-        return $"otpauth://totp/{encodedIssuer}:{encodedEmail}?secret={secretKey}&issuer={encodedIssuer}&algorithm=SHA512&digits={TotpDigits}&period={TotpStep}";
+        var issuer = "Telehealth Platform";
+        var label = $"{issuer}:{email}";
+        return $"otpauth://totp/{Uri.EscapeDataString(label)}?secret={secretKey}&issuer={Uri.EscapeDataString(issuer)}";
     }
 
-    public bool ValidateCode(string secretKey, string code)
+    /// <inheritdoc/>
+    public async Task<MfaSetupResult> GenerateSetupAsync(
+        PlatformUser user,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(secretKey) || string.IsNullOrWhiteSpace(code))
+        var secretKey = GenerateSecretKey();
+        var issuer = "Telehealth Platform";
+        var label = $"{issuer}:{user.Email}";
+        var uri = $"otpauth://totp/{Uri.EscapeDataString(label)}?secret={secretKey}&issuer={Uri.EscapeDataString(issuer)}";
+
+        user.SetMfaSecretKey(secretKey);
+        user.EnableMfa();
+
+        _logger.LogInformation("Generated MFA setup for user {UserId}", user.Id);
+
+        return await Task.FromResult(new MfaSetupResult
         {
+            Success = true,
+            SecretKey = secretKey,
+            QrCodeUri = uri
+        });
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> VerifyCodeAsync(
+        PlatformUser user,
+        string code,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(user.MfaSecretKey))
+        {
+            _logger.LogWarning("MFA not enabled for user {UserId}", user.Id);
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(code))
+        {
+            _logger.LogWarning("Empty code provided for user {UserId}", user.Id);
             return false;
         }
 
         try
         {
-            var secretBytes = Base32Encoding.ToBytes(secretKey);
-            var totp = new Totp(secretBytes, step: TotpStep, mode: TotpMode, totpSize: TotpDigits);
+            var totp = new Totp(Base32Encoding.ToBytes(user.MfaSecretKey));
+            var window = 2;
 
-            // Verify with a window of 1 step before and after (tolerance for clock skew)
-            // Window parameter: 1 means 1 step before AND 1 step after current time
-            return totp.VerifyTotp(code, out long timeStepMatched, new VerificationWindow(previous: 1, future: 1));
+            var isValid = totp.VerifyTotp(code, out _, new VerificationWindow(window, window));
+
+            if (isValid)
+            {
+                _logger.LogInformation("MFA code verified for user {UserId}", user.Id);
+            }
+            else
+            {
+                _logger.LogWarning("Invalid MFA code for user {UserId}", user.Id);
+            }
+
+            return await Task.FromResult(isValid);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying MFA code for user {UserId}", user.Id);
+            return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task DisableMfaAsync(PlatformUser user, CancellationToken cancellationToken = default)
+    {
+        user.DisableMfa();
+        _logger.LogInformation("Disabled MFA for user {UserId}", user.Id);
+        await Task.CompletedTask;
+    }
+
+    public bool ValidateCode(string secretKey, string code)
+    {
+        if (string.IsNullOrEmpty(secretKey) || string.IsNullOrEmpty(code))
+            return false;
+
+        try
+        {
+            var totp = new Totp(Base32Encoding.ToBytes(secretKey));
+            var window = 2;
+            return totp.VerifyTotp(code, out _, new VerificationWindow(window, window));
         }
         catch
         {
@@ -57,57 +142,35 @@ public sealed class MfaService : IMfaService
 
     public string[] GenerateRecoveryCodes(int count = 10)
     {
-        var codes = new List<string>(count);
-
+        var codes = new string[count];
+        using var rng = RandomNumberGenerator.Create();
+        
         for (int i = 0; i < count; i++)
         {
-            // Generate a 10-character alphanumeric code
-            var bytes = RandomNumberGenerator.GetBytes(8);
-            var code = Convert.ToBase64String(bytes)
-                .Replace("+", "")
-                .Replace("/", "")
-                .Replace("=", "")
-                .Substring(0, 10)
-                .ToUpperInvariant();
-
-            // Format as XXXXX-XXXXX for readability
-            var formatted = $"{code.Substring(0, 5)}-{code.Substring(5, 5)}";
-            codes.Add(formatted);
+            var bytes = new byte[8];
+            rng.GetBytes(bytes);
+            codes[i] = Convert.ToBase64String(bytes).Substring(0, 8).Replace("=", "");
         }
-
-        return codes.ToArray();
+        
+        return codes;
     }
 
-    public bool ValidateRecoveryCode(string storedCodes, string code)
+    public bool ValidateRecoveryCode(string recoveryCodes, string code)
     {
-        if (string.IsNullOrWhiteSpace(storedCodes) || string.IsNullOrWhiteSpace(code))
-        {
+        if (string.IsNullOrEmpty(recoveryCodes) || string.IsNullOrEmpty(code))
             return false;
-        }
 
-        try
-        {
-            // In production, recovery codes should be stored as individual hashed codes
-            // This is a simplified implementation
-            var codes = storedCodes.Split(',');
-            return codes.Any(c => c.Equals(code, StringComparison.OrdinalIgnoreCase));
-        }
-        catch
-        {
-            return false;
-        }
+        var codes = recoveryCodes.Split(new[] { ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        return codes.Contains(code, StringComparer.OrdinalIgnoreCase);
     }
 
-    public string RemoveUsedRecoveryCode(string storedCodes, string usedCode)
+    public string RemoveUsedRecoveryCode(string recoveryCodes, string code)
     {
-        if (string.IsNullOrWhiteSpace(storedCodes) || string.IsNullOrWhiteSpace(usedCode))
-        {
-            return storedCodes ?? string.Empty;
-        }
+        if (string.IsNullOrEmpty(recoveryCodes) || string.IsNullOrEmpty(code))
+            return recoveryCodes;
 
-        var codes = storedCodes.Split(',').ToList();
-        codes.RemoveAll(c => c.Equals(usedCode, StringComparison.OrdinalIgnoreCase));
-
-        return string.Join(",", codes);
+        var codes = recoveryCodes.Split(new[] { ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        var filtered = codes.Where(c => !c.Equals(code, StringComparison.OrdinalIgnoreCase)).ToArray();
+        return string.Join(",", filtered);
     }
 }

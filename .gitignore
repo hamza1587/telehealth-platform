@@ -7,3 +7,7 @@ TestResults/
 *.suo
 *.log
 appsettings.Local.json
+
+# Documentation planning files
+docs/*.md
+docs/*.md

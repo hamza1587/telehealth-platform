@@ -11,6 +11,8 @@ public sealed class ConsultationSession : Entity<Guid>
         VideoProvider = videoProvider;
         VideoRoomId = videoRoomId;
         Status = ConsultationSessionStatus.Created;
+        CreatedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public Guid ConsultationBookingId { get; }
@@ -25,8 +27,30 @@ public sealed class ConsultationSession : Entity<Guid>
 
     public long BillableSeconds { get; private set; }
 
+    public DateTimeOffset CreatedAt { get; private set; }
+
+    public DateTimeOffset UpdatedAt { get; private set; }
+
+    public ICollection<ParticipantEvent> ParticipantEvents { get; private set; } = new List<ParticipantEvent>();
+
     public void LinkMedplumEncounter(string medplumEncounterId)
     {
         MedplumEncounterId = medplumEncounterId;
+    }
+
+    public void StartSession()
+    {
+        Status = ConsultationSessionStatus.InProgress;
+    }
+
+    public void EndSession(long billableSeconds)
+    {
+        Status = ConsultationSessionStatus.Completed;
+        BillableSeconds = billableSeconds;
+    }
+
+    public void FailSession()
+    {
+        Status = ConsultationSessionStatus.Failed;
     }
 }

@@ -76,9 +76,12 @@ public sealed class PlatformUser : Entity<Guid>, IAuditableEntity
     public bool LockoutEnabled { get; private set; }
     public DateTimeOffset? LockoutEndAt { get; private set; }
     public int AccessFailedCount { get; private set; }
+    public string? MfaSecretKey { get; private set; }
+    public bool IsMfaEnabled { get; private set; }
 
     // MFA Recovery Codes (encrypted)
     public string? TwoFactorRecoveryCodes { get; set; }
+    public string? MfaRecoveryCodes { get; set; }
 
     // External Authentication
     public string? ExternalProvider { get; private set; }
@@ -103,6 +106,8 @@ public sealed class PlatformUser : Entity<Guid>, IAuditableEntity
     public ICollection<RefreshToken> RefreshTokens { get; private set; } = [];
     public ICollection<LoginAttempt> LoginAttempts { get; private set; } = [];
     public ICollection<DeviceAuthorization> DeviceAuthorizations { get; private set; } = [];
+    public ICollection<UserDevice> UserDevices { get; private set; } = [];
+    public ICollection<UserSession> UserSessions { get; private set; } = [];
 
     public void ConfirmEmail()
     {
@@ -149,6 +154,26 @@ public sealed class PlatformUser : Entity<Guid>, IAuditableEntity
         TwoFactorSecret = null;
         TwoFactorRecoveryCodes = null;
         SecurityStamp = Guid.NewGuid().ToString("N");
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void SetMfaSecretKey(string secretKey)
+    {
+        MfaSecretKey = secretKey;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void EnableMfa()
+    {
+        IsMfaEnabled = true;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void DisableMfa()
+    {
+        IsMfaEnabled = false;
+        MfaSecretKey = null;
+        MfaRecoveryCodes = null;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 

@@ -2,15 +2,33 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 using System.Text;
+using Telehealth.Platform.Application.Abstractions.Analytics;
+using Telehealth.Platform.Application.Abstractions.Billing;
+using Telehealth.Platform.Application.Abstractions.Clinical;
+using Telehealth.Platform.Application.Abstractions.Consultations;
+using Telehealth.Platform.Application.Abstractions.Doctors;
 using Telehealth.Platform.Application.Abstractions.Identity;
 using Telehealth.Platform.Application.Abstractions.Patients;
+using Telehealth.Platform.Application.Abstractions.Reviews;
 using Telehealth.Platform.Application.Abstractions.Time;
+using Telehealth.Platform.Application.Abstractions.Wallets;
+using Telehealth.Platform.Infrastructure.Analytics;
+using Telehealth.Platform.Infrastructure.Billing;
+using Telehealth.Platform.Infrastructure.Clinical;
+using Telehealth.Platform.Infrastructure.Consultations;
+using Telehealth.Platform.Infrastructure.Doctors;
+using Telehealth.Platform.Infrastructure.Health;
 using Telehealth.Platform.Infrastructure.Identity;
 using Telehealth.Platform.Infrastructure.Patients;
 using Telehealth.Platform.Infrastructure.Persistence;
+using Telehealth.Platform.Infrastructure.Performance;
+using Telehealth.Platform.Infrastructure.Reviews;
 using Telehealth.Platform.Infrastructure.Time;
+using Telehealth.Platform.Infrastructure.Wallets;
 
 namespace Telehealth.Platform.Infrastructure;
 
@@ -23,6 +41,19 @@ public static class DependencyInjection
 
         services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(connectionString));
         services.AddSingleton<IClock, SystemClock>();
+
+        services.AddSingleton<DatabaseHealthCheck>();
+        services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
+
+        // Register Redis if enabled
+        var redisOptions = configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>();
+        if (redisOptions?.Enabled ?? false)
+        {
+            services.AddSingleton<IConnectionMultiplexer>(sp =>
+                ConnectionMultiplexer.Connect(redisOptions.Configuration));
+        }
+
+        services.AddScoped<IMfaService, MfaService>();
 
         // Configure JWT settings
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
@@ -96,9 +127,51 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IMfaService, MfaService>();
         services.AddScoped<ILoginAttemptLogger, LoginAttemptLogger>();
+        services.AddScoped<IUserDeviceService, UserDeviceService>();
+        services.AddScoped<IUserSessionService, UserSessionService>();
 
         // Register Patient Services
         services.AddScoped<IPatientOnboardingService, PatientOnboardingService>();
+        services.AddScoped<IPatientAccountService, PatientAccountService>();
+
+        // Register Doctor Services
+        services.AddScoped<IDoctorProfileService, DoctorProfileService>();
+
+        // Register Consultation Services
+        services.AddScoped<IVideoRoomService, VideoRoomService>();
+        services.AddScoped<ITeleconsultationService, TeleconsultationService>();
+        services.AddScoped<IVideoIntegrationService, JitsiVideoIntegrationService>();
+
+        // Register IOptions for Jitsi configuration
+        services.Configure<JitsiOptions>(configuration.GetSection(JitsiOptions.SectionName));
+
+        // Register Clinical Services
+        services.AddScoped<IClinicalRecordService, ClinicalRecordService>();
+
+        // Register Billing Services
+        services.AddScoped<IInsuranceProviderService, InsuranceProviderService>();
+        services.AddScoped<IPatientInsuranceService, PatientInsuranceService>();
+
+        // Register Analytics Services
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
+
+        // Register Wallet Services
+        services.AddScoped<IWalletService, WalletService>();
+        services.AddScoped<IPaymentService, PaymentService>();
+
+        // Register Review Services
+        services.AddScoped<IReviewService, ReviewService>();
+
+        // Register Caching Services
+        services.AddSingleton<ICachingService, CachingService>();
+
+        // Configure Session Options
+        services.Configure<SessionOptions>(options =>
+        {
+            options.DefaultTtl = TimeSpan.FromHours(8);
+            options.MaxConcurrentSessions = 5;
+            options.InactivityTimeout = TimeSpan.FromHours(2);
+        });
 
         return services;
     }

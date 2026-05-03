@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  telehealth-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telehealth-platform-api
+    ports:
+      - "8080:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - PlatformDatabase__Host=postgres
+      - PlatformDatabase__Port=5432
+      - PlatformDatabase__Database=telehealth_platform
+      - PlatformDatabase__Username=telehealth
+      - PlatformDatabase__Password=telehealth_secure
+      - Redis__Configuration=redis:6379
+      - Redis__Enabled=true
+      - Jitsi__Domain=meet.jit.si
+      - Jitsi__AppId=telehealth-platform
+      - Jwt__SecretKey=your-production-secret-key-change-in-production
+      - Jwt__Issuer=TelehealthPlatform
+      - Jwt__Audience=TelehealthApi
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - telehealth-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: telehealth-postgres
+    environment:
+      - POSTGRES_USER=telehealth
+      - POSTGRES_PASSWORD=telehealth_secure
+      - POSTGRES_DB=telehealth_platform
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - telehealth-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: telehealth-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - telehealth-network
+
+  prometheus:
+    image: prom/prometheus:v3.0.0
+    container_name: telehealth-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    networks:
+      - telehealth-network
+
+  grafana:
+    image: grafana/grafana-enterprise:11.0.0
+    container_name: telehealth-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_DOMAIN=localhost:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - telehealth-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  telehealth-network:
+    driver: bridge

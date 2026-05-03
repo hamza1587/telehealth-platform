@@ -1,10 +1,19 @@
 using Microsoft.EntityFrameworkCore;
+using Telehealth.Platform.Domain.Analytics;
 using Telehealth.Platform.Domain.Auditing;
+using Telehealth.Platform.Domain.Billing;
+using Telehealth.Platform.Domain.Clinical;
 using Telehealth.Platform.Domain.Common;
+using Telehealth.Platform.Domain.Compliance;
 using Telehealth.Platform.Domain.Consultations;
 using Telehealth.Platform.Domain.Doctors;
+using Telehealth.Platform.Domain.Financial;
 using Telehealth.Platform.Domain.Identity;
+using Telehealth.Platform.Domain.InstantConsultation;
+using Telehealth.Platform.Domain.Notifications;
 using Telehealth.Platform.Domain.Patients;
+using Telehealth.Platform.Domain.Reviews;
+using Telehealth.Platform.Domain.Research;
 
 namespace Telehealth.Platform.Infrastructure.Persistence;
 
@@ -31,8 +40,6 @@ public sealed class PlatformDbContext : DbContext
 
     public DbSet<DoctorAvailabilityWindow> DoctorAvailabilityWindows => Set<DoctorAvailabilityWindow>();
 
-    public DbSet<ConsultationBooking> ConsultationBookings => Set<ConsultationBooking>();
-
     // Identity
     public DbSet<PlatformUser> PlatformUsers => Set<PlatformUser>();
     public DbSet<Role> Roles => Set<Role>();
@@ -42,6 +49,48 @@ public sealed class PlatformDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<LoginAttempt> LoginAttempts => Set<LoginAttempt>();
     public DbSet<DeviceAuthorization> DeviceAuthorizations => Set<DeviceAuthorization>();
+    public DbSet<UserDevice> UserDevices => Set<UserDevice>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
+
+    // Financial
+    public DbSet<Wallet> Wallets => Set<Wallet>();
+    public DbSet<WalletLedgerEntry> WalletLedgerEntries => Set<WalletLedgerEntry>();
+    public DbSet<Payment> Payments => Set<Payment>();
+
+    // Billing
+    public DbSet<BillingSession> BillingSessions => Set<BillingSession>();
+
+    // Consultations
+    public DbSet<VideoRoom> VideoRooms => Set<VideoRoom>();
+    public DbSet<ConsultationSession> ConsultationSessions => Set<ConsultationSession>();
+    public DbSet<ParticipantEvent> ParticipantEvents => Set<ParticipantEvent>();
+
+    // Notifications
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    // Clinical
+    public DbSet<ClinicalRecord> ClinicalRecords => Set<ClinicalRecord>();
+
+    // Billing
+    public DbSet<InsuranceProvider> InsuranceProviders => Set<InsuranceProvider>();
+    public DbSet<PatientInsurance> PatientInsurances => Set<PatientInsurance>();
+
+    // Analytics
+    public DbSet<DashboardMetrics> DashboardMetrics => Set<DashboardMetrics>();
+    public DbSet<AnalyticsReport> Reports => Set<AnalyticsReport>();
+    public DbSet<ConsultationAnalytics> ConsultationAnalytics => Set<ConsultationAnalytics>();
+
+    // Consultation Requests
+    public DbSet<ConsultationRequest> ConsultationRequests => Set<ConsultationRequest>();
+
+    // Instant Queue
+    public DbSet<InstantQueueEntry> InstantQueueEntries => Set<InstantQueueEntry>();
+
+    // Research
+    public DbSet<ResearchExport> ResearchExports => Set<ResearchExport>();
+
+    // Reviews
+    public DbSet<Review> Reviews => Set<Review>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -133,11 +182,6 @@ public sealed class PlatformDbContext : DbContext
             entity.Property(x => x.DisplayName).HasColumnName("display_name");
             entity.Property(x => x.CountryCode).HasColumnName("country_code");
             entity.Property(x => x.PrimarySpecialty).HasColumnName("primary_specialty");
-            entity.OwnsOne(x => x.PricePerSecond, money =>
-            {
-                money.Property(x => x.MinorUnits).HasColumnName("default_price_per_second_minor");
-                money.Property(x => x.Currency).HasColumnName("currency");
-            });
             entity.Property(x => x.VerificationStatus).HasColumnName("verification_status").HasConversion<string>();
             entity.Property(x => x.MarketplaceStatus).HasColumnName("marketplace_status").HasConversion<string>();
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
@@ -410,6 +454,301 @@ public sealed class PlatformDbContext : DbContext
             entity.HasIndex(x => x.LastSeenAt).HasDatabaseName("ix_device_authorizations_last_seen_at");
 
             entity.HasOne(x => x.User).WithMany(x => x.DeviceAuthorizations).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserDevice>(entity =>
+        {
+            entity.ToTable("user_devices");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.UserId).HasColumnName("user_id");
+            entity.Property(x => x.DeviceId).HasColumnName("device_id").HasMaxLength(100);
+            entity.Property(x => x.DeviceName).HasColumnName("device_name").HasMaxLength(200);
+            entity.Property(x => x.DeviceType).HasColumnName("device_type").HasMaxLength(50);
+            entity.Property(x => x.UserAgent).HasColumnName("user_agent").HasMaxLength(500);
+            entity.Property(x => x.IpAddress).HasColumnName("ip_address").HasMaxLength(50);
+            entity.Property(x => x.DeviceFingerprint).HasColumnName("device_fingerprint").HasMaxLength(500);
+            entity.Property(x => x.FirstSeenAt).HasColumnName("first_seen_at");
+            entity.Property(x => x.LastSeenAt).HasColumnName("last_seen_at");
+            entity.Property(x => x.LastUsedAt).HasColumnName("last_used_at");
+            entity.Property(x => x.IsTrusted).HasColumnName("is_trusted");
+            entity.Property(x => x.IsBlocked).HasColumnName("is_blocked");
+            entity.Property(x => x.BlockedAt).HasColumnName("blocked_at");
+            entity.Property(x => x.BlockedReason).HasColumnName("blocked_reason").HasMaxLength(200);
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasIndex(x => new { x.UserId, x.DeviceId }).IsUnique().HasDatabaseName("ix_user_devices_user_device");
+            entity.HasIndex(x => x.DeviceFingerprint).HasDatabaseName("ix_user_devices_fingerprint");
+            entity.HasIndex(x => x.LastSeenAt).HasDatabaseName("ix_user_devices_last_seen_at");
+
+            entity.HasOne(x => x.User).WithMany(x => x.UserDevices).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserSession>(entity =>
+        {
+            entity.ToTable("user_sessions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.UserId).HasColumnName("user_id");
+            entity.Property(x => x.SessionId).HasColumnName("session_id").HasMaxLength(100);
+            entity.Property(x => x.DeviceId).HasColumnName("device_id").HasMaxLength(100);
+            entity.Property(x => x.IpAddress).HasColumnName("ip_address").HasMaxLength(50);
+            entity.Property(x => x.UserAgent).HasColumnName("user_agent").HasMaxLength(500);
+            entity.Property(x => x.StartedAt).HasColumnName("started_at");
+            entity.Property(x => x.LastActivityAt).HasColumnName("last_activity_at");
+            entity.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(x => x.EndedAt).HasColumnName("ended_at");
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(50);
+            entity.Property(x => x.EndReason).HasColumnName("end_reason").HasMaxLength(200);
+
+            entity.HasIndex(x => x.SessionId).IsUnique().HasDatabaseName("ix_user_sessions_session_id");
+            entity.HasIndex(x => x.UserId).HasDatabaseName("ix_user_sessions_user_id");
+            entity.HasIndex(x => x.DeviceId).HasDatabaseName("ix_user_sessions_device_id");
+            entity.HasIndex(x => x.ExpiresAt).HasDatabaseName("ix_user_sessions_expires_at");
+            entity.HasIndex(x => x.LastActivityAt).HasDatabaseName("ix_user_sessions_last_activity_at");
+
+            entity.HasOne(x => x.User).WithMany(x => x.UserSessions).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Analytics Configuration
+        modelBuilder.Entity<AnalyticsReport>(entity =>
+        {
+            entity.ToTable("analytics_reports");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.ReportType).HasColumnName("report_type").HasMaxLength(100);
+            entity.Property(x => x.Title).HasColumnName("title").HasMaxLength(500);
+            entity.Property(x => x.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(x => x.Format).HasColumnName("format").HasMaxLength(50);
+            entity.Property(x => x.GeneratedAt).HasColumnName("generated_at");
+            entity.Property(x => x.StartedAt).HasColumnName("started_at");
+            entity.Property(x => x.CompletedAt).HasColumnName("completed_at");
+            entity.Property(x => x.RecordCount).HasColumnName("record_count");
+            entity.Property(x => x.Status).HasColumnName("status").HasMaxLength(50);
+            entity.Property(x => x.CreatedBy).HasColumnName("created_by").HasMaxLength(100);
+            entity.Property(x => x.Parameters).HasColumnName("parameters").HasColumnType("jsonb");
+            entity.Property(x => x.ResultLocation).HasColumnName("result_location").HasMaxLength(500);
+
+            entity.HasIndex(x => x.ReportType).HasDatabaseName("ix_analytics_reports_report_type");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_analytics_reports_status");
+            entity.HasIndex(x => x.GeneratedAt).HasDatabaseName("ix_analytics_reports_generated_at");
+        });
+
+        modelBuilder.Entity<ConsultationAnalytics>(entity =>
+        {
+            entity.ToTable("consultation_analytics");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Date).HasColumnName("date");
+            entity.Property(x => x.ConsultationMode).HasColumnName("consultation_mode").HasMaxLength(50);
+            entity.Property(x => x.Status).HasColumnName("status").HasMaxLength(50);
+            entity.Property(x => x.Count).HasColumnName("count");
+            entity.Property(x => x.CompletedCount).HasColumnName("completed_count");
+            entity.Property(x => x.CancelledCount).HasColumnName("cancelled_count");
+            entity.Property(x => x.NoShowCount).HasColumnName("no_show_count");
+            entity.Property(x => x.TotalBillableSeconds).HasColumnName("total_billable_seconds");
+            entity.Property(x => x.TotalRevenueMinor).HasColumnName("total_revenue_minor");
+            entity.Property(x => x.AverageDurationSeconds).HasColumnName("average_duration_seconds");
+            entity.Property(x => x.DoctorProfileId).HasColumnName("doctor_profile_id");
+            entity.Property(x => x.PatientAccountId).HasColumnName("patient_account_id");
+
+            entity.HasIndex(x => x.Date).HasDatabaseName("ix_consultation_analytics_date");
+            entity.HasIndex(x => x.DoctorProfileId).HasDatabaseName("ix_consultation_analytics_doctor_profile_id");
+            entity.HasIndex(x => x.PatientAccountId).HasDatabaseName("ix_consultation_analytics_patient_account_id");
+        });
+
+        // Review Configuration
+        modelBuilder.Entity<Review>(entity =>
+        {
+            entity.ToTable("reviews");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.PatientAccountId).HasColumnName("patient_account_id");
+            entity.Property(x => x.DoctorProfileId).HasColumnName("doctor_profile_id");
+            entity.Property(x => x.ConsultationBookingId).HasColumnName("consultation_booking_id");
+            entity.Property(x => x.Rating).HasColumnName("rating");
+            entity.Property(x => x.Comment).HasColumnName("comment").HasMaxLength(2000);
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.ReviewedAt).HasColumnName("reviewed_at");
+            entity.Property(x => x.ReviewedBy).HasColumnName("reviewed_by").HasMaxLength(100);
+
+            entity.HasIndex(x => x.DoctorProfileId).HasDatabaseName("ix_reviews_doctor_id");
+            entity.HasIndex(x => x.PatientAccountId).HasDatabaseName("ix_reviews_patient_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_reviews_status");
+        });
+
+        // ConsultationRequest Configuration
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("notifications");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.RecipientId).HasColumnName("recipient_id");
+            entity.Property(x => x.RecipientType).HasColumnName("recipient_type").HasMaxLength(50);
+            entity.Property(x => x.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.Title).HasColumnName("title").HasMaxLength(200);
+            entity.Property(x => x.Message).HasColumnName("message").HasMaxLength(2000);
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.SentAt).HasColumnName("sent_at");
+            entity.Property(x => x.ReadAt).HasColumnName("read_at");
+            entity.Property(x => x.RelatedEntity).HasColumnName("related_entity").HasMaxLength(100);
+            entity.Property(x => x.RelatedEntityId).HasColumnName("related_entity_id");
+            entity.Property(x => x.Metadata).HasColumnName("metadata").HasColumnType("jsonb");
+
+            entity.HasIndex(x => x.RecipientId).HasDatabaseName("ix_notifications_recipient_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_notifications_status");
+            entity.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_notifications_created_at");
+        });
+
+        // ResearchExport Configuration
+        modelBuilder.Entity<ResearchExport>(entity =>
+        {
+            entity.ToTable("research_exports");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.RequesterId).HasColumnName("requester_id");
+            entity.Property(x => x.RequesterType).HasColumnName("requester_type").HasMaxLength(50);
+            entity.Property(x => x.Title).HasColumnName("title").HasMaxLength(200);
+            entity.Property(x => x.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.RequestedAt).HasColumnName("requested_at");
+            entity.Property(x => x.StartedAt).HasColumnName("started_at");
+            entity.Property(x => x.CompletedAt).HasColumnName("completed_at");
+            entity.Property(x => x.RecordCount).HasColumnName("record_count");
+            entity.Property(x => x.DownloadUrl).HasColumnName("download_url").HasMaxLength(500);
+            entity.Property(x => x.FailureReason).HasColumnName("failure_reason").HasMaxLength(500);
+            entity.Property(x => x.Parameters).HasColumnName("parameters").HasColumnType("jsonb");
+
+            entity.HasIndex(x => x.RequesterId).HasDatabaseName("ix_research_exports_requester_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_research_exports_status");
+        });
+
+        // ConsultationRequest Configuration
+        modelBuilder.Entity<ConsultationRequest>(entity =>
+        {
+            entity.ToTable("consultation_requests");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.PatientAccountId).HasColumnName("patient_account_id");
+            entity.Property(x => x.DoctorProfileId).HasColumnName("doctor_profile_id");
+            entity.Property(x => x.RequestedAt).HasColumnName("requested_at");
+            entity.Property(x => x.ScheduledAt).HasColumnName("scheduled_at");
+            entity.Property(x => x.CompletedAt).HasColumnName("completed_at");
+            entity.Property(x => x.Mode).HasColumnName("mode").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.Reason).HasColumnName("reason").HasMaxLength(500);
+            entity.Property(x => x.RejectionReason).HasColumnName("rejection_reason").HasMaxLength(500);
+            entity.Property(x => x.MedplumEncounterId).HasColumnName("medplum_encounter_id").HasMaxLength(100);
+
+            entity.HasIndex(x => x.PatientAccountId).HasDatabaseName("ix_requests_patient_id");
+            entity.HasIndex(x => x.DoctorProfileId).HasDatabaseName("ix_requests_doctor_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_requests_status");
+        });
+
+        // GdprRequest Configuration
+        modelBuilder.Entity<GdprRequest>(entity =>
+        {
+            entity.ToTable("gdpr_requests");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.PatientAccountId).HasColumnName("patient_account_id");
+            entity.Property(x => x.RequestType).HasColumnName("request_type").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.SubmittedAt).HasColumnName("submitted_at");
+            entity.Property(x => x.ProcessedAt).HasColumnName("processed_at");
+            entity.Property(x => x.Details).HasColumnName("details").HasMaxLength(1000);
+            entity.Property(x => x.RejectionReason).HasColumnName("rejection_reason").HasMaxLength(500);
+            entity.Property(x => x.DownloadUrl).HasColumnName("download_url").HasMaxLength(500);
+
+            entity.HasIndex(x => x.PatientAccountId).HasDatabaseName("ix_gdpr_requests_patient_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_gdpr_requests_status");
+        });
+
+        // AuditLog Configuration
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.ToTable("audit_logs");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Timestamp).HasColumnName("timestamp");
+            entity.Property(x => x.EventType).HasColumnName("event_type").HasMaxLength(100);
+            entity.Property(x => x.UserId).HasColumnName("user_id").HasMaxLength(100);
+            entity.Property(x => x.UserType).HasColumnName("user_type").HasMaxLength(50);
+            entity.Property(x => x.ResourceType).HasColumnName("resource_type").HasMaxLength(100);
+            entity.Property(x => x.ResourceId).HasColumnName("resource_id");
+            entity.Property(x => x.Action).HasColumnName("action").HasMaxLength(100);
+            entity.Property(x => x.Changes).HasColumnName("changes").HasColumnType("jsonb");
+            entity.Property(x => x.IpAddress).HasColumnName("ip_address").HasMaxLength(45);
+            entity.Property(x => x.UserAgent).HasColumnName("user_agent").HasMaxLength(500);
+            entity.Property(x => x.CorrelationId).HasColumnName("correlation_id").HasMaxLength(100);
+
+            entity.HasIndex(x => x.Timestamp).HasDatabaseName("ix_audit_logs_timestamp");
+            entity.HasIndex(x => x.UserId).HasDatabaseName("ix_audit_logs_user_id");
+            entity.HasIndex(x => x.CorrelationId).HasDatabaseName("ix_audit_logs_correlation_id");
+        });
+
+        // ConsultationSession Configuration
+        modelBuilder.Entity<InstantQueueEntry>(entity =>
+        {
+            entity.ToTable("instant_queue_entries");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.PatientAccountId).HasColumnName("patient_account_id");
+            entity.Property(x => x.DoctorProfileId).HasColumnName("doctor_profile_id");
+            entity.Property(x => x.JoinedAt).HasColumnName("joined_at");
+            entity.Property(x => x.MatchedAt).HasColumnName("matched_at");
+            entity.Property(x => x.StartedAt).HasColumnName("started_at");
+            entity.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.Priority).HasColumnName("priority");
+            entity.Property(x => x.Reason).HasColumnName("reason").HasMaxLength(500);
+
+            entity.HasIndex(x => x.PatientAccountId).HasDatabaseName("ix_queue_patient_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_queue_status");
+            entity.HasIndex(x => x.ExpiresAt).HasDatabaseName("ix_queue_expires_at");
+        });
+
+        // ConsultationSession Configuration
+        modelBuilder.Entity<ConsultationSession>(entity =>
+        {
+            entity.ToTable("consultation_sessions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.ConsultationBookingId).HasColumnName("consultation_booking_id");
+            entity.Property(x => x.MedplumEncounterId).HasColumnName("medplum_encounter_id");
+            entity.Property(x => x.VideoProvider).HasColumnName("video_provider").HasMaxLength(50);
+            entity.Property(x => x.VideoRoomId).HasColumnName("video_room_id").HasMaxLength(100);
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(50);
+            entity.Property(x => x.BillableSeconds).HasColumnName("billable_seconds");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasIndex(x => x.ConsultationBookingId).IsUnique().HasDatabaseName("ix_consultation_sessions_booking_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_consultation_sessions_status");
+        });
+
+        // ParticipantEvent Configuration
+        modelBuilder.Entity<ParticipantEvent>(entity =>
+        {
+            entity.ToTable("participant_events");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.ConsultationSessionId).HasColumnName("consultation_session_id");
+            entity.Property(x => x.EventType).HasColumnName("event_type").HasConversion<string>().HasMaxLength(50);
+            entity.Property(x => x.OccurredAt).HasColumnName("occurred_at");
+            entity.Property(x => x.ParticipantType).HasColumnName("participant_type").HasMaxLength(50);
+            entity.Property(x => x.ParticipantId).HasColumnName("participant_id").HasMaxLength(100);
+            entity.Property(x => x.Metadata).HasColumnName("metadata").HasColumnType("jsonb");
+
+            entity.HasIndex(x => x.ConsultationSessionId).HasDatabaseName("ix_participant_events_session_id");
+            entity.HasIndex(x => x.OccurredAt).HasDatabaseName("ix_participant_events_occurred_at");
+
+            entity.HasOne(x => x.Session)
+                .WithMany(x => x.ParticipantEvents)
+                .HasForeignKey(x => x.ConsultationSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
