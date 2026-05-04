@@ -2,19 +2,19 @@ using Telehealth.Platform.Domain.Common;
 
 namespace Telehealth.Platform.Domain.Financial;
 
-public class Payment : Entity<Guid>
+public class WalletPayment : Entity<Guid>
 {
     public Guid WalletId { get; private set; }
     public long AmountMinor { get; private set; }
     public string Currency { get; private set; } = "USD";
     public string PaymentMethod { get; private set; } = string.Empty;
     public string ExternalPaymentId { get; private set; } = string.Empty;
-    public PaymentStatus Status { get; private set; } = PaymentStatus.Pending;
+    public WalletPaymentStatus Status { get; private set; } = WalletPaymentStatus.Pending;
     public string StatusDetails { get; private set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
 
-    private Payment(
+    private WalletPayment(
         Guid id,
         Guid walletId,
         long amountMinor,
@@ -30,33 +30,33 @@ public class Payment : Entity<Guid>
         CreatedAt = DateTimeOffset.UtcNow;
     }
 
-    public static Payment Create(
+    public static WalletPayment Create(
         Guid walletId,
         long amountMinor,
         string currency,
         string paymentMethod,
         string externalPaymentId)
     {
-        return new Payment(Guid.NewGuid(), walletId, amountMinor, currency, paymentMethod, externalPaymentId);
+        return new WalletPayment(Guid.NewGuid(), walletId, amountMinor, currency, paymentMethod, externalPaymentId);
     }
 
     public void MarkCompleted()
     {
-        Status = PaymentStatus.Completed;
+        Status = WalletPaymentStatus.Completed;
         CompletedAt = DateTimeOffset.UtcNow;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public void MarkFailed(string reason)
     {
-        Status = PaymentStatus.Failed;
+        Status = WalletPaymentStatus.Failed;
         StatusDetails = reason;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public void MarkPending(string details)
     {
-        Status = PaymentStatus.Pending;
+        Status = WalletPaymentStatus.Pending;
         StatusDetails = details;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
@@ -64,7 +64,7 @@ public class Payment : Entity<Guid>
     public DateTimeOffset UpdatedAt { get; private set; } = DateTimeOffset.UtcNow;
 }
 
-public enum PaymentStatus
+public enum WalletPaymentStatus
 {
     Pending = 1,
     Processing = 2,

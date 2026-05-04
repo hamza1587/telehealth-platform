@@ -8,4 +8,5 @@ public enum PaymentTransactionStatus
     Failed = 4,
     Refunded = 5,
     Chargeback = 6,
+    Disputed = 7
 }

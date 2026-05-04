@@ -22,6 +22,7 @@ using Telehealth.Platform.Application.Abstractions.Reviews;
 using Telehealth.Platform.Application.Abstractions.Tenancy;
 using Telehealth.Platform.Application.Abstractions.Time;
 using Telehealth.Platform.Application.Abstractions.Wallets;
+using Telehealth.Platform.Application.Abstractions.Payments;
 using Telehealth.Platform.Infrastructure.Analytics;
 using Telehealth.Platform.Infrastructure.AI;
 using Telehealth.Platform.Infrastructure.Billing;
@@ -39,6 +40,7 @@ using Telehealth.Platform.Infrastructure.Reviews;
 using Telehealth.Platform.Infrastructure.Tenancy;
 using Telehealth.Platform.Infrastructure.Time;
 using Telehealth.Platform.Infrastructure.Wallets;
+using Telehealth.Platform.Infrastructure.Payments;
 using Telehealth.Platform.Infrastructure.Notifications;
 
 namespace Telehealth.Platform.Infrastructure;
@@ -170,7 +172,18 @@ public static class DependencyInjection
 
         // Register Wallet Services
         services.AddScoped<IWalletService, WalletService>();
-        services.AddScoped<IPaymentService, PaymentService>();
+
+        // Register Payment Services
+        services.AddScoped<Application.Abstractions.Payments.IPaymentService, Application.Payments.PaymentService>();
+        services.AddScoped<Application.Abstractions.Payments.IPaymentGateway, Payments.StripePaymentGateway>();
+        services.AddScoped<Application.Abstractions.Payments.ITokenizationService, Payments.TokenizationService>();
+        services.AddScoped<Application.Abstractions.Payments.IPciComplianceService, Payments.PciComplianceService>();
+        services.Configure<Payments.StripePaymentGatewayOptions>(
+            configuration.GetSection("PaymentGateways:Stripe"));
+        services.Configure<Payments.TokenizationServiceOptions>(
+            configuration.GetSection("Tokenization"));
+        services.Configure<Payments.PciComplianceServiceOptions>(
+            configuration.GetSection("PciCompliance"));
 
         // Register Review Services
         services.AddScoped<IReviewService, ReviewService>();

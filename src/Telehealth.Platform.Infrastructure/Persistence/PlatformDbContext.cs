@@ -12,6 +12,7 @@ using Telehealth.Platform.Domain.Identity;
 using Telehealth.Platform.Domain.InstantConsultation;
 using Telehealth.Platform.Domain.Notifications;
 using Telehealth.Platform.Domain.Patients;
+using Telehealth.Platform.Domain.Payments;
 using Telehealth.Platform.Domain.Reviews;
 using Telehealth.Platform.Domain.Research;
 using Telehealth.Platform.Domain.Tenancy;
@@ -56,7 +57,14 @@ public sealed partial class PlatformDbContext : DbContext
     // Financial
     public DbSet<Wallet> Wallets => Set<Wallet>();
     public DbSet<WalletLedgerEntry> WalletLedgerEntries => Set<WalletLedgerEntry>();
+    public DbSet<WalletPayment> WalletPayments => Set<WalletPayment>();
+
+    // Payments
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
+    public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
+    public DbSet<Refund> Refunds => Set<Refund>();
+    public DbSet<Dispute> Disputes => Set<Dispute>();
 
     // Billing
     public DbSet<BillingSession> BillingSessions => Set<BillingSession>();
@@ -751,6 +759,118 @@ public sealed partial class PlatformDbContext : DbContext
                 .WithMany(x => x.ParticipantEvents)
                 .HasForeignKey(x => x.ConsultationSessionId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Payment Configuration
+        modelBuilder.Entity<Payment>(entity =>
+        {
+            entity.ToTable("payments");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.PatientAccountId).HasColumnName("patient_account_id");
+            entity.Property(x => x.PaymentMethodId).HasColumnName("payment_method_id");
+            entity.Property(x => x.AmountMinor).HasColumnName("amount_minor");
+            entity.Property(x => x.Currency).HasColumnName("currency").HasConversion<string>().HasMaxLength(3);
+            entity.Property(x => x.Description).HasColumnName("description").HasMaxLength(500);
+            entity.Property(x => x.ExternalPaymentId).HasColumnName("external_payment_id").HasMaxLength(100);
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.StatusDetails).HasColumnName("status_details").HasMaxLength(500);
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(x => x.CompletedAt).HasColumnName("completed_at");
+            entity.Property(x => x.FailedAt).HasColumnName("failed_at");
+
+            entity.HasIndex(x => x.PatientAccountId).HasDatabaseName("ix_payments_patient_id");
+            entity.HasIndex(x => x.ExternalPaymentId).HasDatabaseName("ix_payments_external_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_payments_status");
+            entity.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_payments_created_at");
+        });
+
+        // PaymentMethod Configuration
+        modelBuilder.Entity<PaymentMethod>(entity =>
+        {
+            entity.ToTable("payment_methods");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.PatientAccountId).HasColumnName("patient_account_id");
+            entity.Property(x => x.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.Provider).HasColumnName("provider").HasMaxLength(50);
+            entity.Property(x => x.Token).HasColumnName("token").HasMaxLength(200);
+            entity.Property(x => x.LastFour).HasColumnName("last_four").HasMaxLength(4);
+            entity.Property(x => x.Brand).HasColumnName("brand").HasMaxLength(20);
+            entity.Property(x => x.ExpiryMonth).HasColumnName("expiry_month");
+            entity.Property(x => x.IsDefault).HasColumnName("is_default");
+            entity.Property(x => x.IsVerified).HasColumnName("is_verified");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(x => x.DeletedAt).HasColumnName("deleted_at");
+
+            entity.HasIndex(x => x.PatientAccountId).HasDatabaseName("ix_payment_methods_patient_id");
+            entity.HasIndex(x => x.IsDefault).HasDatabaseName("ix_payment_methods_default");
+            entity.HasIndex(x => x.Token).HasDatabaseName("ix_payment_methods_token");
+        });
+
+        // PaymentTransaction Configuration
+        modelBuilder.Entity<PaymentTransaction>(entity =>
+        {
+            entity.ToTable("payment_transactions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.PaymentId).HasColumnName("payment_id");
+            entity.Property(x => x.PatientAccountId).HasColumnName("patient_account_id");
+            entity.Property(x => x.Provider).HasColumnName("provider").HasMaxLength(50);
+            entity.Property(x => x.ProviderTransactionId).HasColumnName("provider_transaction_id").HasMaxLength(100);
+            entity.Property(x => x.AmountMinor).HasColumnName("amount_minor");
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.StatusDetails).HasColumnName("status_details").HasMaxLength(500);
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(x => x.CompletedAt).HasColumnName("completed_at");
+
+            entity.HasIndex(x => x.PaymentId).HasDatabaseName("ix_payment_transactions_payment_id");
+            entity.HasIndex(x => x.ProviderTransactionId).HasDatabaseName("ix_payment_transactions_provider_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_payment_transactions_status");
+        });
+
+        // Refund Configuration
+        modelBuilder.Entity<Refund>(entity =>
+        {
+            entity.ToTable("refunds");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.PaymentId).HasColumnName("payment_id");
+            entity.Property(x => x.AmountMinor).HasColumnName("amount_minor");
+            entity.Property(x => x.Currency).HasColumnName("currency").HasMaxLength(3);
+            entity.Property(x => x.Reason).HasColumnName("reason").HasMaxLength(500);
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.ExternalRefundId).HasColumnName("external_refund_id").HasMaxLength(100);
+            entity.Property(x => x.StatusDetails).HasColumnName("status_details").HasMaxLength(500);
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(x => x.CompletedAt).HasColumnName("completed_at");
+
+            entity.HasIndex(x => x.PaymentId).HasDatabaseName("ix_refunds_payment_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_refunds_status");
+        });
+
+        // Dispute Configuration
+        modelBuilder.Entity<Dispute>(entity =>
+        {
+            entity.ToTable("disputes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.PaymentId).HasColumnName("payment_id");
+            entity.Property(x => x.Reason).HasColumnName("reason").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.ReasonDescription).HasColumnName("reason_description").HasMaxLength(500);
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.Evidence).HasColumnName("evidence").HasMaxLength(2000);
+            entity.Property(x => x.StatusDetails).HasColumnName("status_details").HasMaxLength(500);
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(x => x.ResolvedAt).HasColumnName("resolved_at");
+
+            entity.HasIndex(x => x.PaymentId).HasDatabaseName("ix_disputes_payment_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_disputes_status");
         });
     }
 }

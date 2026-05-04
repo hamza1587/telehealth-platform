@@ -13,6 +13,7 @@ using Telehealth.Platform.Api.InstantConsultation;
 using Telehealth.Platform.Api.Middleware;
 using Telehealth.Platform.Api.Notifications;
 using Telehealth.Platform.Api.Patients;
+using Telehealth.Platform.Api.Payments;
 using Telehealth.Platform.Api.Prescriptions;
 using Telehealth.Platform.Api.Reviews;
 using Telehealth.Platform.Api.Research;
@@ -119,6 +120,8 @@ app.MapGroup("/api").MapTeleconsultationEndpoints();
 app.MapResearchExportEndpoints();
 app.MapDeviceEndpoints();
 app.MapSessionEndpoints();
+
+app.MapControllers();
 
 // Protected endpoint examples using authorization policies
 var admin = app.MapGroup("/admin").RequireAuthorization("RequireAdmin").WithTags("Admin");

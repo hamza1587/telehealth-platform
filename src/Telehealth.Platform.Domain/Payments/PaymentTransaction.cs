@@ -4,28 +4,75 @@ namespace Telehealth.Platform.Domain.Payments;
 
 public sealed class PaymentTransaction : Entity<Guid>
 {
-    public PaymentTransaction(
+    private PaymentTransaction(
         Guid id,
+        Guid paymentId,
         Guid patientAccountId,
         string provider,
         string providerTransactionId,
-        Money amount)
-        : base(id)
+        long amountMinor,
+        Money amount,
+        PaymentTransactionStatus status) : base(id)
     {
+        PaymentId = paymentId;
         PatientAccountId = patientAccountId;
         Provider = provider;
         ProviderTransactionId = providerTransactionId;
+        AmountMinor = amountMinor;
         Amount = amount;
-        Status = PaymentTransactionStatus.Pending;
+        Status = status;
+        CreatedAt = DateTimeOffset.UtcNow;
     }
 
-    public Guid PatientAccountId { get; }
-
-    public string Provider { get; }
-
-    public string ProviderTransactionId { get; }
-
-    public Money Amount { get; }
-
+    public Guid PaymentId { get; private set; }
+    public Guid PatientAccountId { get; private set; }
+    public string Provider { get; private set; }
+    public string ProviderTransactionId { get; private set; }
+    public long AmountMinor { get; private set; }
+    public Telehealth.Platform.Domain.Common.Money Amount { get; private set; }
     public PaymentTransactionStatus Status { get; private set; }
+    public string StatusDetails { get; private set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset? CompletedAt { get; private set; }
+    public DateTimeOffset UpdatedAt { get; private set; } = DateTimeOffset.UtcNow;
+
+    public static PaymentTransaction Create(
+        Guid paymentId,
+        Guid patientAccountId,
+        string provider,
+        string providerTransactionId,
+        long amountMinor,
+        Telehealth.Platform.Domain.Common.Money amount)
+    {
+        return new PaymentTransaction(
+            Guid.NewGuid(),
+            paymentId,
+            patientAccountId,
+            provider,
+            providerTransactionId,
+            amountMinor,
+            amount,
+            PaymentTransactionStatus.Pending);
+    }
+
+    public void SetStatus(PaymentTransactionStatus status, string details = "")
+    {
+        Status = status;
+        StatusDetails = details;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Complete()
+    {
+        Status = PaymentTransactionStatus.Completed;
+        CompletedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Fail(string details)
+    {
+        Status = PaymentTransactionStatus.Failed;
+        StatusDetails = details;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
 }
