@@ -64,7 +64,10 @@ public class ResearchExport : Entity<Guid>
         {
             foreach (var param in parameters)
             {
-                export.Parameters[param.Key] = param.Value;
+                if (export.Parameters != null)
+                {
+                    export.Parameters[param.Key] = param.Value;
+                }
             }
         }
 

@@ -1,6 +1,8 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    environment: production
 
 scrape_configs:
   - job_name: 'telehealth-platform'
@@ -8,6 +10,10 @@ scrape_configs:
       - targets: ['telehealth-platform-service.telehealth.svc.cluster.local:80']
     metrics_path: '/metrics'
     scrape_interval: 10s
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'mfa_.*|device_.*|consent_.*|login_.*'
+        action: keep
 
   - job_name: 'postgres'
     static_configs:
@@ -17,11 +23,19 @@ scrape_configs:
     static_configs:
       - targets: ['redis-exporter.telehealth.svc.cluster.local:9121']
 
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager.telehealth.svc.cluster.local:9093']
+
 alerting:
   alertmanagers:
     - static_configs:
         - targets:
           - alertmanager.telehealth.svc.cluster.local:9093
+      relabel_configs:
+        - source_labels: [__address__]
+          target_label: __param_target
 
 rule_files:
   - "alert-rules.yml"
+  - "phase1-alert-rules.yml"

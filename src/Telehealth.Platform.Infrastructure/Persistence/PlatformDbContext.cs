@@ -18,7 +18,7 @@ using Telehealth.Platform.Domain.Tenancy;
 
 namespace Telehealth.Platform.Infrastructure.Persistence;
 
-public sealed class PlatformDbContext : DbContext
+public sealed partial class PlatformDbContext : DbContext
 {
     public PlatformDbContext(DbContextOptions<PlatformDbContext> options)
         : base(options)

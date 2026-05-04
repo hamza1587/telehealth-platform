@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: telehealth-postgres-dev
+    environment:
+      POSTGRES_DB: telehealth_dev
+      POSTGRES_USER: telehealth
+      POSTGRES_PASSWORD: telehealth
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - telehealth-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: telehealth-redis-dev
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - telehealth-network
+
+  # Video Service
+  video-service:
+    build:
+      context: ./src/VideoService
+      dockerfile: Dockerfile
+    container_name: telehealth-video-dev
+    ports:
+      - "8080:80"
+    environment:
+      - WEBRTC_PROVIDER=twilio
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_CONNECTION=Host=postgres;Port=5432;Database=telehealth_dev;Username=telehealth;Password=telehealth
+      - RECORDING_ENABLED=true
+      - TRANSCRIPTION_ENABLED=true
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - telehealth-network
+
+  # Prescription Service
+  prescription-service:
+    build:
+      context: ./src/PrescriptionService
+      dockerfile: Dockerfile
+    container_name: telehealth-prescription-dev
+    ports:
+      - "8081:80"
+    environment:
+      - NATIONAL_API_URL=https://api.national-prescription.gov
+      - PHARMACY_API_KEY=${PHARMACY_API_KEY}
+      - DIGITAL_SIGNATURE_ENABLED=true
+      - POSTGRES_CONNECTION=Host=postgres;Port=5432;Database=telehealth_dev;Username=telehealth;Password=telehealth
+    depends_on:
+      - postgres
+    networks:
+      - telehealth-network
+
+  # Analytics Service
+  analytics-service:
+    build:
+      context: ./src/AnalyticsService
+      dockerfile: Dockerfile
+    container_name: telehealth-analytics-dev
+    ports:
+      - "8082:80"
+    environment:
+      - WAREHOUSE_CONNECTION=Host=postgres;Port=5432;Database=telehealth_dev;Username=telehealth;Password=telehealth
+      - REDIS_URL=redis://redis:6379
+      - CACHE_TTL_SECONDS=300
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - telehealth-network
+
+  # API Gateway
+  api-gateway:
+    image: nginx:alpine
+    container_name: telehealth-gateway-dev
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf.dev:/etc/nginx/nginx.conf
+    depends_on:
+      - video-service
+      - prescription-service
+      - analytics-service
+    networks:
+      - telehealth-network
+
+volumes:
+  postgres_data_dev:
+  redis_data_dev:
+
+networks:
+  telehealth-network:
+    driver: bridge

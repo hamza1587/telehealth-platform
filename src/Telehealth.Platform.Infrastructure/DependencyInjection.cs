@@ -8,6 +8,7 @@ using StackExchange.Redis;
 using System.Text;
 using Telehealth.Platform.Application.Abstractions.AI;
 using Telehealth.Platform.Application.Abstractions.Analytics;
+using Telehealth.Platform.Application.Abstractions.Consent;
 using Telehealth.Platform.Application.Abstractions.Billing;
 using Telehealth.Platform.Application.Abstractions.Clinical;
 using Telehealth.Platform.Application.Abstractions.Consultations;
@@ -64,6 +65,8 @@ public static class DependencyInjection
         }
 
         services.AddScoped<IMfaService, MfaService>();
+        services.AddScoped<IDeviceManagementService, DeviceManagementService>();
+        services.AddScoped<IConsentService, ConsentService>();
 
         // Configure JWT settings
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
