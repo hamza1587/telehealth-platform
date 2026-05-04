@@ -14,6 +14,7 @@ using Telehealth.Platform.Domain.Notifications;
 using Telehealth.Platform.Domain.Patients;
 using Telehealth.Platform.Domain.Reviews;
 using Telehealth.Platform.Domain.Research;
+using Telehealth.Platform.Domain.Tenancy;
 
 namespace Telehealth.Platform.Infrastructure.Persistence;
 
@@ -91,6 +92,10 @@ public sealed class PlatformDbContext : DbContext
 
     // Reviews
     public DbSet<Review> Reviews => Set<Review>();
+
+    // Tenancy
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<TenantMembership> TenantMemberships => Set<TenantMembership>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -578,27 +583,24 @@ public sealed class PlatformDbContext : DbContext
             entity.HasIndex(x => x.Status).HasDatabaseName("ix_reviews_status");
         });
 
-        // ConsultationRequest Configuration
+        // Notification Configuration
         modelBuilder.Entity<Notification>(entity =>
         {
             entity.ToTable("notifications");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Id).HasColumnName("id");
-            entity.Property(x => x.RecipientId).HasColumnName("recipient_id");
-            entity.Property(x => x.RecipientType).HasColumnName("recipient_type").HasMaxLength(50);
+            entity.Property(x => x.UserId).HasColumnName("user_id");
             entity.Property(x => x.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.Title).HasColumnName("title").HasMaxLength(200);
             entity.Property(x => x.Message).HasColumnName("message").HasMaxLength(2000);
-            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.IsRead).HasColumnName("is_read");
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
-            entity.Property(x => x.SentAt).HasColumnName("sent_at");
             entity.Property(x => x.ReadAt).HasColumnName("read_at");
-            entity.Property(x => x.RelatedEntity).HasColumnName("related_entity").HasMaxLength(100);
-            entity.Property(x => x.RelatedEntityId).HasColumnName("related_entity_id");
+            entity.Property(x => x.ActionUrl).HasColumnName("action_url").HasMaxLength(500);
             entity.Property(x => x.Metadata).HasColumnName("metadata").HasColumnType("jsonb");
 
-            entity.HasIndex(x => x.RecipientId).HasDatabaseName("ix_notifications_recipient_id");
-            entity.HasIndex(x => x.Status).HasDatabaseName("ix_notifications_status");
+            entity.HasIndex(x => x.UserId).HasDatabaseName("ix_notifications_user_id");
+            entity.HasIndex(x => x.IsRead).HasDatabaseName("ix_notifications_is_read");
             entity.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_notifications_created_at");
         });
 

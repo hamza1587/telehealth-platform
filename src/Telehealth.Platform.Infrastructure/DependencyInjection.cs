@@ -6,29 +6,39 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using System.Text;
+using Telehealth.Platform.Application.Abstractions.AI;
 using Telehealth.Platform.Application.Abstractions.Analytics;
 using Telehealth.Platform.Application.Abstractions.Billing;
 using Telehealth.Platform.Application.Abstractions.Clinical;
 using Telehealth.Platform.Application.Abstractions.Consultations;
 using Telehealth.Platform.Application.Abstractions.Doctors;
+using Telehealth.Platform.Application.Abstractions.EHR;
 using Telehealth.Platform.Application.Abstractions.Identity;
+using Telehealth.Platform.Application.Abstractions.Notifications;
 using Telehealth.Platform.Application.Abstractions.Patients;
+using Telehealth.Platform.Application.Abstractions.Pharmacy;
 using Telehealth.Platform.Application.Abstractions.Reviews;
+using Telehealth.Platform.Application.Abstractions.Tenancy;
 using Telehealth.Platform.Application.Abstractions.Time;
 using Telehealth.Platform.Application.Abstractions.Wallets;
 using Telehealth.Platform.Infrastructure.Analytics;
+using Telehealth.Platform.Infrastructure.AI;
 using Telehealth.Platform.Infrastructure.Billing;
 using Telehealth.Platform.Infrastructure.Clinical;
 using Telehealth.Platform.Infrastructure.Consultations;
 using Telehealth.Platform.Infrastructure.Doctors;
+using Telehealth.Platform.Infrastructure.EHR;
 using Telehealth.Platform.Infrastructure.Health;
 using Telehealth.Platform.Infrastructure.Identity;
 using Telehealth.Platform.Infrastructure.Patients;
+using Telehealth.Platform.Infrastructure.Pharmacy;
 using Telehealth.Platform.Infrastructure.Persistence;
 using Telehealth.Platform.Infrastructure.Performance;
 using Telehealth.Platform.Infrastructure.Reviews;
+using Telehealth.Platform.Infrastructure.Tenancy;
 using Telehealth.Platform.Infrastructure.Time;
 using Telehealth.Platform.Infrastructure.Wallets;
+using Telehealth.Platform.Infrastructure.Notifications;
 
 namespace Telehealth.Platform.Infrastructure;
 
@@ -161,6 +171,21 @@ public static class DependencyInjection
 
         // Register Review Services
         services.AddScoped<IReviewService, ReviewService>();
+
+        // Register AI Services
+        services.AddScoped<IDiagnosticService, DiagnosticService>();
+
+        // Register EHR Services
+        services.AddScoped<IFhirService, FhirService>();
+
+        // Register Pharmacy Services
+        services.AddScoped<IDrugInteractionService, DrugInteractionService>();
+
+        // Register Tenancy Services
+        services.AddScoped<ITenantService, TenantService>();
+
+        // Register Notification Services
+        services.AddScoped<INotificationService, NotificationService>();
 
         // Register Caching Services
         services.AddSingleton<ICachingService, CachingService>();
