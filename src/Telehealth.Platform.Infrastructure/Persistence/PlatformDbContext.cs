@@ -72,6 +72,7 @@ public sealed partial class PlatformDbContext : DbContext
     // Consultations
     public DbSet<VideoRoom> VideoRooms => Set<VideoRoom>();
     public DbSet<ConsultationSession> ConsultationSessions => Set<ConsultationSession>();
+    public DbSet<ConsultationBooking> ConsultationBookings => Set<ConsultationBooking>();
     public DbSet<ParticipantEvent> ParticipantEvents => Set<ParticipantEvent>();
 
     // Notifications
@@ -253,19 +254,18 @@ public sealed partial class PlatformDbContext : DbContext
             entity.Property(x => x.Id).HasColumnName("id");
             entity.Property(x => x.PatientAccountId).HasColumnName("patient_account_id");
             entity.Property(x => x.DoctorProfileId).HasColumnName("doctor_profile_id");
-            entity.Property(x => x.MedplumAppointmentId).HasColumnName("medplum_appointment_id");
             entity.Property(x => x.SpecialtyCode).HasColumnName("specialty_code");
+            entity.Property(x => x.Specialty).HasColumnName("specialty");
+            entity.Property(x => x.PatientName).HasColumnName("patient_name");
+            entity.Property(x => x.DoctorName).HasColumnName("doctor_name");
             entity.Property(x => x.ConsultationMode).HasColumnName("consultation_mode").HasConversion<string>();
-            entity.Property(x => x.BookingType).HasColumnName("booking_type").HasConversion<string>();
             entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>();
+            entity.Property(x => x.PriceMinor).HasColumnName("price_minor");
+            entity.Property(x => x.Currency).HasColumnName("currency").HasMaxLength(3);
             entity.Property(x => x.ScheduledStartsAt).HasColumnName("scheduled_starts_at");
             entity.Property(x => x.ScheduledEndsAt).HasColumnName("scheduled_ends_at");
-            entity.OwnsOne(x => x.PricePerSecond, money =>
-            {
-                money.Property(x => x.MinorUnits).HasColumnName("price_per_second_minor");
-                money.Property(x => x.Currency).HasColumnName("currency");
-            });
-            entity.Property(x => x.ReservedSeconds).HasColumnName("reserved_seconds");
+            entity.Property(x => x.Notes).HasColumnName("notes");
+            entity.Property(x => x.RejectionReason).HasColumnName("rejection_reason");
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
             entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
         });

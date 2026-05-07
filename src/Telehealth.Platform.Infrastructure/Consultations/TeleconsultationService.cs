@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Telehealth.Platform.Application.Abstractions.Consultations;
 using Telehealth.Platform.Domain.Consultations;
+using Telehealth.Platform.Application.Consultations;
+using Telehealth.Platform.Domain.Common;
 using Telehealth.Platform.Infrastructure.Persistence;
 
 namespace Telehealth.Platform.Infrastructure.Consultations;
@@ -111,5 +113,208 @@ public class TeleconsultationService : ITeleconsultationService
         return await _dbContext.ConsultationSessions
             .Where(s => s.Status == ConsultationSessionStatus.InProgress)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<AppointmentDto>> GetPatientAppointmentsAsync(
+        Guid patientId,
+        string? status,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.ConsultationBookings
+            .Where(b => b.PatientAccountId == patientId)
+            .Select(b => new AppointmentDto(
+                b.Id,
+                b.DoctorProfileId,
+                b.DoctorName,
+                b.Specialty,
+                b.ConsultationMode,
+                b.Status,
+                b.ScheduledStartsAt ?? DateTimeOffset.UtcNow,
+                b.ScheduledEndsAt ?? DateTimeOffset.UtcNow,
+                new Money(b.PriceMinor, b.Currency),
+                (long)(b.ScheduledEndsAt - b.ScheduledStartsAt ?? TimeSpan.Zero).TotalSeconds,
+                b.CreatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<AppointmentDto> BookAppointmentAsync(
+        Guid patientId,
+        BookAppointmentRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var booking = new ConsultationBooking(
+            Guid.NewGuid(),
+            patientId,
+            request.DoctorProfileId,
+            request.SpecialtyCode,
+            request.ConsultationMode,
+            request.SpecialtyCode,
+            0,
+            "EUR");
+
+        await _dbContext.ConsultationBookings.AddAsync(booking, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new AppointmentDto(
+            booking.Id,
+            booking.DoctorProfileId,
+            string.Empty,
+            request.SpecialtyCode,
+            booking.ConsultationMode,
+            booking.Status,
+            booking.ScheduledStartsAt ?? DateTimeOffset.UtcNow,
+            booking.ScheduledEndsAt ?? DateTimeOffset.UtcNow,
+            new Money(booking.PriceMinor, booking.Currency),
+            (long)(booking.ScheduledEndsAt - booking.ScheduledStartsAt ?? TimeSpan.Zero).TotalSeconds,
+            booking.CreatedAt);
+    }
+
+    public async Task CancelAppointmentAsync(
+        Guid appointmentId,
+        Guid patientId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var booking = await _dbContext.ConsultationBookings
+            .FirstOrDefaultAsync(b => b.Id == appointmentId && b.PatientAccountId == patientId, cancellationToken)
+            ?? throw new InvalidOperationException("Appointment not found");
+
+        booking.Cancel(reason);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<AppointmentDto> RescheduleAppointmentAsync(
+        Guid appointmentId,
+        Guid patientId,
+        RescheduleAppointmentRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        var booking = await _dbContext.ConsultationBookings
+            .FirstOrDefaultAsync(b => b.Id == appointmentId && b.PatientAccountId == patientId, cancellationToken)
+            ?? throw new InvalidOperationException("Appointment not found");
+
+        booking.Reschedule(request.NewStartsAt, request.NewEndsAt);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new AppointmentDto(
+            booking.Id,
+            booking.DoctorProfileId,
+            booking.DoctorName,
+            booking.Specialty,
+            booking.ConsultationMode,
+            booking.Status,
+            booking.ScheduledStartsAt ?? DateTimeOffset.UtcNow,
+            booking.ScheduledEndsAt ?? DateTimeOffset.UtcNow,
+            new Money(booking.PriceMinor, booking.Currency),
+            (long)(booking.ScheduledEndsAt - booking.ScheduledStartsAt ?? TimeSpan.Zero).TotalSeconds,
+            booking.CreatedAt);
+    }
+
+    public async Task<AppointmentDto> GetAppointmentAsync(
+        Guid appointmentId,
+        Guid patientId,
+        CancellationToken cancellationToken = default)
+    {
+        var booking = await _dbContext.ConsultationBookings
+            .FirstOrDefaultAsync(b => b.Id == appointmentId && b.PatientAccountId == patientId, cancellationToken)
+            ?? throw new InvalidOperationException("Appointment not found");
+
+        return new AppointmentDto(
+            booking.Id,
+            booking.DoctorProfileId,
+            booking.DoctorName,
+            booking.Specialty,
+            booking.ConsultationMode,
+            booking.Status,
+            booking.ScheduledStartsAt ?? DateTimeOffset.UtcNow,
+            booking.ScheduledEndsAt ?? DateTimeOffset.UtcNow,
+            new Money(booking.PriceMinor, booking.Currency),
+            (long)(booking.ScheduledEndsAt - booking.ScheduledStartsAt ?? TimeSpan.Zero).TotalSeconds,
+            booking.CreatedAt);
+    }
+
+    public async Task ConfirmAppointmentAsync(
+        Guid appointmentId,
+        Guid doctorId,
+        CancellationToken cancellationToken = default)
+    {
+        var booking = await _dbContext.ConsultationBookings
+            .FirstOrDefaultAsync(b => b.Id == appointmentId && b.DoctorProfileId == doctorId, cancellationToken)
+            ?? throw new InvalidOperationException("Appointment not found");
+
+        booking.Confirm();
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectAppointmentAsync(
+        Guid appointmentId,
+        Guid doctorId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var booking = await _dbContext.ConsultationBookings
+            .FirstOrDefaultAsync(b => b.Id == appointmentId && b.DoctorProfileId == doctorId, cancellationToken)
+            ?? throw new InvalidOperationException("Appointment not found");
+
+        booking.Reject(reason);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<DoctorAppointmentDto>> GetDoctorUpcomingAppointmentsAsync(
+        Guid doctorId,
+        int daysAhead,
+        CancellationToken cancellationToken = default)
+    {
+        var endDate = DateTimeOffset.UtcNow.AddDays(daysAhead);
+
+        return await _dbContext.ConsultationBookings
+            .Where(b => b.DoctorProfileId == doctorId && b.ScheduledStartsAt >= DateTimeOffset.UtcNow && b.ScheduledStartsAt <= endDate)
+            .Select(b => new DoctorAppointmentDto(
+                b.Id,
+                b.PatientName,
+                b.Specialty,
+                b.ConsultationMode,
+                b.Status,
+                b.ScheduledStartsAt ?? DateTimeOffset.UtcNow,
+                b.ScheduledEndsAt ?? DateTimeOffset.UtcNow,
+                false,
+                null))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<DoctorScheduleDto> GetDoctorScheduleAsync(
+        Guid doctorId,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken cancellationToken = default)
+    {
+        return new DoctorScheduleDto(Guid.NewGuid(), new List<ScheduleSlotDto>(), new List<BookedSlotDto>(), new List<ScheduleExceptionDto>());
+    }
+
+    public async Task SetDoctorAvailabilitySlotsAsync(
+        Guid doctorId,
+        SetAvailabilityRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task RemoveDoctorAvailabilitySlotAsync(
+        Guid doctorId,
+        Guid slotId,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<IEnumerable<AvailabilitySlotDto>> GetDoctorAvailabilitySlotsAsync(
+        Guid doctorId,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken cancellationToken = default)
+    {
+        return await Task.FromResult(Enumerable.Empty<AvailabilitySlotDto>());
     }
 }

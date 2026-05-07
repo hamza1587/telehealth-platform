@@ -1,4 +1,5 @@
 using Telehealth.Platform.Domain.Consultations;
+using Telehealth.Platform.Application.Consultations;
 
 namespace Telehealth.Platform.Application.Abstractions.Consultations;
 
@@ -37,5 +38,72 @@ public interface ITeleconsultationService
         CancellationToken cancellationToken = default);
 
     Task<IEnumerable<ConsultationSession>> GetActiveSessionsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IEnumerable<AppointmentDto>> GetPatientAppointmentsAsync(
+        Guid patientId,
+        string? status,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken cancellationToken = default);
+
+    Task<AppointmentDto> BookAppointmentAsync(
+        Guid patientId,
+        BookAppointmentRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    Task CancelAppointmentAsync(
+        Guid appointmentId,
+        Guid patientId,
+        string reason,
+        CancellationToken cancellationToken = default);
+
+    Task<AppointmentDto> RescheduleAppointmentAsync(
+        Guid appointmentId,
+        Guid patientId,
+        RescheduleAppointmentRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    Task<AppointmentDto> GetAppointmentAsync(
+        Guid appointmentId,
+        Guid patientId,
+        CancellationToken cancellationToken = default);
+
+    Task ConfirmAppointmentAsync(
+        Guid appointmentId,
+        Guid doctorId,
+        CancellationToken cancellationToken = default);
+
+    Task RejectAppointmentAsync(
+        Guid appointmentId,
+        Guid doctorId,
+        string reason,
+        CancellationToken cancellationToken = default);
+
+    Task<IEnumerable<DoctorAppointmentDto>> GetDoctorUpcomingAppointmentsAsync(
+        Guid doctorId,
+        int daysAhead,
+        CancellationToken cancellationToken = default);
+
+    Task<DoctorScheduleDto> GetDoctorScheduleAsync(
+        Guid doctorId,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        CancellationToken cancellationToken = default);
+
+    Task SetDoctorAvailabilitySlotsAsync(
+        Guid doctorId,
+        SetAvailabilityRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    Task RemoveDoctorAvailabilitySlotAsync(
+        Guid doctorId,
+        Guid slotId,
+        CancellationToken cancellationToken = default);
+
+    Task<IEnumerable<AvailabilitySlotDto>> GetDoctorAvailabilitySlotsAsync(
+        Guid doctorId,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
         CancellationToken cancellationToken = default);
 }

@@ -14,4 +14,6 @@ public enum ConsultationBookingStatus
     NoShowDoctor = 10,
     FailedTechnical = 11,
     Refunded = 12,
+    Rejected = 13,
+    Cancelled = 14,
 }
