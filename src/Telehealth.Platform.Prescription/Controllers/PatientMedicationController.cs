@@ -24,21 +24,19 @@ public class PatientMedicationController : ControllerBase
     {
         var prescriptions = await _prescriptionService.GetPatientPrescriptionsAsync(patientId);
         
-        var history = prescriptions.Select(p => new PatientMedicationHistory
-        {
-            PrescriptionId = p.Id,
-            Medications = p.Items.Select(i => new MedicationHistoryItem
-            {
-                Code = i.MedicationCode,
-                Name = i.MedicationName,
-                Dosage = i.Dosage,
-                Frequency = i.Frequency,
-                StartDate = p.CreatedAt,
-                IsDiscontinued = p.Status == Domain.Models.PrescriptionStatus.Dispensed || p.Status == Domain.Models.PrescriptionStatus.Cancelled,
-                Source = p.NationalPrescriptionId != null ? "National Prescription System" : "Platform Prescription"
-            }).ToList(),
-            LastUpdated = p.UpdatedAt
-        }).ToList();
+        var history = prescriptions.Select(p => new PatientMedicationHistory(
+            p.Id,
+            p.Items.Select(i => new MedicationHistoryItem(
+                i.MedicationCode,
+                i.MedicationName,
+                i.Dosage,
+                i.Frequency,
+                p.CreatedAt,
+                p.Status == Domain.Models.PrescriptionStatus.Dispensed || p.Status == Domain.Models.PrescriptionStatus.Cancelled,
+                p.NationalPrescriptionId != null ? "National Prescription System" : "Platform Prescription"
+            )).ToList(),
+            p.UpdatedAt ?? p.CreatedAt
+        )).ToList();
 
         return Ok(history);
     }
@@ -55,13 +53,12 @@ public class PatientMedicationController : ControllerBase
             var prescriptions = await _prescriptionService.GetPatientPrescriptionsAsync(patientId);
             var syncedCount = prescriptions.Count(p => p.NationalPrescriptionId != null);
             
-            return Ok(new MedicationSyncResult
-            {
-                PatientId = patientId,
-                SyncedCount = syncedCount,
-                Message = result,
-                Timestamp = DateTimeOffset.UtcNow
-            });
+            return Ok(new MedicationSyncResult(
+                patientId,
+                syncedCount,
+                result,
+                DateTimeOffset.UtcNow
+            ));
         }
         catch (Exception ex)
         {
@@ -78,14 +75,13 @@ public class PatientMedicationController : ControllerBase
         // Placeholder for actual interaction checking
         foreach (var med in medications)
         {
-            var interaction = new DrugInteraction
-            {
-                Medication1 = med,
-                Medication2 = medications.FirstOrDefault(m => m != med) ?? string.Empty,
-                Severity = "Moderate",
-                Description = $"Potential interaction between {med} and other medications",
-                Recommendation = "Monitor patient closely"
-            };
+            var interaction = new DrugInteraction(
+                med,
+                medications.FirstOrDefault(m => m != med) ?? string.Empty,
+                "Moderate",
+                $"Potential interaction between {med} and other medications",
+                "Monitor patient closely"
+            );
             interactions.Add(interaction);
         }
         

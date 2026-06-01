@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Telehealth.Platform.Domain.Entities;
 
 namespace Telehealth.Platform.Integrations.Healthcare;
 

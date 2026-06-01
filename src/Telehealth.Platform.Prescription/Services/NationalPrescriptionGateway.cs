@@ -7,6 +7,7 @@ namespace Telehealth.Platform.Prescription.Services;
 public class NationalPrescriptionGateway : INationalPrescriptionGateway
 {
     private readonly HttpClient _httpClient;
+    private readonly IConfiguration _configuration;
     private readonly string _apiUrl;
     private readonly string _apiKey;
     private readonly string _certificatePath;
@@ -14,10 +15,11 @@ public class NationalPrescriptionGateway : INationalPrescriptionGateway
     public NationalPrescriptionGateway(IHttpClientFactory httpClientFactory, IConfiguration configuration)
     {
         _httpClient = httpClientFactory.CreateClient();
+        _configuration = configuration;
         _apiUrl = configuration["NationalPrescription:ApiUrl"] ?? "https://api.national-prescription.gov";
         _apiKey = configuration["NationalPrescription:ApiKey"] ?? throw new ArgumentNullException("NationalPrescription:ApiKey");
         _certificatePath = configuration["NationalPrescription:CertificatePath"] ?? throw new ArgumentNullException("NationalPrescription:CertificatePath");
-        
+
         _httpClient.BaseAddress = new Uri(_apiUrl);
         _httpClient.DefaultRequestHeaders.Add("X-API-Key", _apiKey);
     }

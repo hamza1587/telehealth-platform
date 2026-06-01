@@ -21,6 +21,7 @@ public class Prescription
     public PrescriptionStatus Status { get; private set; }
     public string DigitalSignature { get; private set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset? UpdatedAt { get; private set; }
     public DateTimeOffset? SentAt { get; private set; }
     public DateTimeOffset? DispensedAt { get; private set; }
     public string? NationalPrescriptionId { get; private set; }
@@ -50,12 +51,14 @@ public class Prescription
     public void AddItem(PrescriptionItem item)
     {
         Items.Add(item);
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public void Sign(string digitalSignature)
     {
         DigitalSignature = digitalSignature;
         Status = PrescriptionStatus.Pending;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public void Send(string nationalPrescriptionId, string? pharmacyId = null)
@@ -64,17 +67,20 @@ public class Prescription
         PharmacyId = pharmacyId;
         Status = PrescriptionStatus.Sent;
         SentAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public void Dispense()
     {
         Status = PrescriptionStatus.Dispensed;
         DispensedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public void Cancel()
     {
         Status = PrescriptionStatus.Cancelled;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public void MarkAsControlledSubstance(string deaNumber)

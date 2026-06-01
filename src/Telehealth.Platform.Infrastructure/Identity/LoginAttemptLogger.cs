@@ -68,7 +68,7 @@ public sealed class LoginAttemptLogger : ILoginAttemptLogger
     public async Task LogMfaRequiredAsync(
         string userId,
         string email,
-        string ipAddress,
+        string? ipAddress,
         string? userAgent,
         string? deviceId)
     {

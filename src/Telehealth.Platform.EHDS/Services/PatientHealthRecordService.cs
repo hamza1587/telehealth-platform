@@ -343,7 +343,7 @@ public class PatientHealthRecordService : IPatientHealthRecordService
                     Display = coding.Display,
                     ClinicalStatus = condition.ClinicalStatus?.Coding?.FirstOrDefault()?.Code ?? "active",
                     VerificationStatus = condition.VerificationStatus?.Coding?.FirstOrDefault()?.Code ?? "confirmed",
-                    OnsetDateTime = condition.Onset is FhirDateTime dt ? dt.ToDateTimeOffset() : DateTimeOffset.UtcNow
+                    OnsetDateTime = condition.Onset is FhirDateTime dt ? dt.ToDateTimeOffset(TimeSpan.Zero) : DateTimeOffset.UtcNow
                 });
             }
         }
@@ -401,7 +401,7 @@ public class PatientHealthRecordService : IPatientHealthRecordService
                     System = coding.System,
                     Display = coding.Display,
                     AdministrationDate = immunization.Occurrence is FhirDateTime dt ?
-                        dt.ToDateTimeOffset() : DateTimeOffset.UtcNow,
+                        dt.ToDateTimeOffset(TimeSpan.Zero) : DateTimeOffset.UtcNow,
                     LotNumber = immunization.LotNumber,
                     Site = immunization.Site?.Coding?.FirstOrDefault()?.Display
                 });
@@ -421,7 +421,7 @@ public class PatientHealthRecordService : IPatientHealthRecordService
                     System = coding.System,
                     Display = coding.Display,
                     PerformedDate = procedure.Performed is FhirDateTime dt ?
-                        dt.ToDateTimeOffset() : DateTimeOffset.UtcNow,
+                        dt.ToDateTimeOffset(TimeSpan.Zero) : DateTimeOffset.UtcNow,
                     Status = procedure.Status?.ToString() ?? "completed",
                     Notes = procedure.Note?.FirstOrDefault()?.Text?.ToString() ?? string.Empty
                 });
@@ -444,7 +444,7 @@ public class PatientHealthRecordService : IPatientHealthRecordService
                     Value = value?.Value?.ToString() ?? "0",
                     Unit = value?.Unit ?? "",
                     EffectiveDateTime = observation.Effective is FhirDateTime dt ?
-                        dt.ToDateTimeOffset() : DateTimeOffset.UtcNow
+                        dt.ToDateTimeOffset(TimeSpan.Zero) : DateTimeOffset.UtcNow
                 });
             }
         }
