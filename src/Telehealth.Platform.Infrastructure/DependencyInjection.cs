@@ -68,7 +68,7 @@ public static class DependencyInjection
 
         services.AddScoped<IMfaService, MfaService>();
         services.AddScoped<IDeviceManagementService, DeviceManagementService>();
-        services.AddScoped<IConsentService, ConsentService>();
+        services.AddScoped<IConsentService, Identity.ConsentService>();
 
         // Configure JWT settings
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
@@ -173,8 +173,7 @@ public static class DependencyInjection
         // Register Wallet Services
         services.AddScoped<IWalletService, WalletService>();
 
-        // Register Payment Services
-        services.AddScoped<Application.Abstractions.Payments.IPaymentService, Application.Payments.PaymentService>();
+        // Register Payment Gateway Services
         services.AddScoped<Application.Abstractions.Payments.IPaymentGateway, Payments.StripePaymentGateway>();
         services.AddScoped<Application.Abstractions.Payments.ITokenizationService, Payments.TokenizationService>();
         services.AddScoped<Application.Abstractions.Payments.IPciComplianceService, Payments.PciComplianceService>();
