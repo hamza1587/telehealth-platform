@@ -22,15 +22,15 @@ public sealed class AuditEvent : Entity<Guid>
         OccurredAt = occurredAt;
     }
 
-    public string ActorId { get; }
+    public string ActorId { get; private set; }
 
-    public string ActorType { get; }
+    public string ActorType { get; private set; }
 
-    public string Action { get; }
+    public string Action { get; private set; }
 
-    public string TargetType { get; }
+    public string TargetType { get; private set; }
 
-    public string TargetId { get; }
+    public string TargetId { get; private set; }
 
-    public DateTimeOffset OccurredAt { get; }
+    public DateTimeOffset OccurredAt { get; private set; }
 }

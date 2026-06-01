@@ -30,14 +30,14 @@ public sealed class DoctorSpecialty : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid DoctorProfileId { get; }
+    public Guid DoctorProfileId { get; private set; }
     public string SpecialtyCode { get; private set; }
     public string SpecialtyName { get; private set; }
     public bool IsPrimary { get; private set; }
     public string? CertificationNumber { get; private set; }
     public DateOnly? CertifiedDate { get; private set; }
     public DateOnly? ExpiryDate { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void Update(

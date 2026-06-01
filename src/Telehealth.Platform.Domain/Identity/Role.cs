@@ -21,7 +21,7 @@ public sealed class Role : Entity<Guid>
     public string NormalizedName { get; private set; }
     public string? Description { get; private set; }
     public int Priority { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
 
     public ICollection<UserRole> UserRoles { get; private set; } = [];
     public ICollection<RolePermission> RolePermissions { get; private set; } = [];

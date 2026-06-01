@@ -36,7 +36,7 @@ public sealed class DayPass : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid PatientAccountId { get; }
+    public Guid PatientAccountId { get; private set; }
     public string PassType { get; private set; }
     public int DurationHours { get; private set; }
     public decimal Price { get; private set; }
@@ -49,7 +49,7 @@ public sealed class DayPass : Entity<Guid>
     public DateTimeOffset ExpiresAt { get; private set; }
     public DateTimeOffset? CancelledAt { get; private set; }
     public string? CancellationReason { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public bool CanUse()

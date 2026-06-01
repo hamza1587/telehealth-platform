@@ -34,20 +34,20 @@ public sealed class SupportTicket : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public string TicketNumber { get; }
-    public Guid UserId { get; }
-    public string UserType { get; }
-    public string Category { get; }
+    public string TicketNumber { get; private set; }
+    public Guid UserId { get; private set; }
+    public string UserType { get; private set; }
+    public string Category { get; private set; }
     public string Subject { get; private set; }
     public string Description { get; private set; }
     public TicketPriority Priority { get; private set; }
     public TicketStatus Status { get; private set; }
     public Guid? AssignedTo { get; private set; }
     public string? AssignedToName { get; private set; }
-    public Guid? RelatedConsultationId { get; }
-    public Guid? RelatedBillingId { get; }
+    public Guid? RelatedConsultationId { get; private set; }
+    public Guid? RelatedBillingId { get; private set; }
     public string? Resolution { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? AssignedAt { get; private set; }
     public DateTimeOffset? ResolvedAt { get; private set; }

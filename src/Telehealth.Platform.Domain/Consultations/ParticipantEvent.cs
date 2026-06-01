@@ -26,7 +26,7 @@ public sealed class ParticipantEvent : Entity<Guid>
         OccurredAt = occurredAt;
     }
 
-    public Guid ConsultationSessionId { get; }
+    public Guid ConsultationSessionId { get; private set; }
 
     public ParticipantEventType EventType { get; private set; }
 

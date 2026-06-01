@@ -51,7 +51,7 @@ public sealed class LoginAttempt : Entity<Guid>
     public bool? IsSuspicious { get; private set; }
 
     // Audit timestamp - immutable
-    public DateTimeOffset AttemptedAt { get; }
+    public DateTimeOffset AttemptedAt { get; private set; }
 
     public void MarkMfaSuccess(string method)
     {

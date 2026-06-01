@@ -31,15 +31,15 @@ public sealed class ClinicalNote : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid ConsultationSessionId { get; }
-    public Guid PatientAccountId { get; }
-    public Guid DoctorProfileId { get; }
+    public Guid ConsultationSessionId { get; private set; }
+    public Guid PatientAccountId { get; private set; }
+    public Guid DoctorProfileId { get; private set; }
     public string NoteType { get; private set; }
     public string Title { get; private set; }
     public string Content { get; private set; }
     public bool IsDraft { get; private set; }
     public bool IsLocked { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? LockedAt { get; private set; }
     public string? LockedBy { get; private set; }

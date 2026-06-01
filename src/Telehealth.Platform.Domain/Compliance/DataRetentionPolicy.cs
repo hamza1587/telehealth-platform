@@ -39,7 +39,7 @@ public sealed class DataRetentionPolicy : Entity<Guid>
     public string Purpose { get; private set; }
     public bool AutoDelete { get; private set; }
     public bool IsActive { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void Update(

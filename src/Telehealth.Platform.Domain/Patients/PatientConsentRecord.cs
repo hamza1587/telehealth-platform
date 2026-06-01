@@ -32,27 +32,27 @@ public sealed class PatientConsentRecord : Entity<Guid>
         CapturedAt = capturedAt;
     }
 
-    public Guid PatientAccountId { get; }
+    public Guid PatientAccountId { get; private set; }
 
-    public string ConsentType { get; }
+    public string ConsentType { get; private set; }
 
-    public string Version { get; }
+    public string Version { get; private set; }
 
-    public string TextSnapshot { get; }
+    public string TextSnapshot { get; private set; }
 
-    public string TextHash { get; }
+    public string TextHash { get; private set; }
 
-    public string Language { get; }
+    public string Language { get; private set; }
 
-    public string LegalBasis { get; }
+    public string LegalBasis { get; private set; }
 
-    public bool IsAccepted { get; }
+    public bool IsAccepted { get; private set; }
 
-    public string? IpAddress { get; }
+    public string? IpAddress { get; private set; }
 
-    public string? UserAgent { get; }
+    public string? UserAgent { get; private set; }
 
-    public DateTimeOffset CapturedAt { get; }
+    public DateTimeOffset CapturedAt { get; private set; }
 
     public DateTimeOffset? WithdrawnAt { get; private set; }
 }

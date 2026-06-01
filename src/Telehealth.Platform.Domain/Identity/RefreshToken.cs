@@ -42,7 +42,7 @@ public sealed class RefreshToken : Entity<Guid>
 
     // Token lifecycle
     public DateTimeOffset ExpiresAt { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? RevokedAt { get; private set; }
     public string? RevokedReason { get; private set; }
     public bool IsRevoked { get; private set; }

@@ -43,21 +43,21 @@ public sealed class AdminOperation : Entity<Guid>
         CreatedAt = createdAt;
     }
 
-    public Guid AdminId { get; }
-    public string AdminName { get; }
-    public string OperationType { get; }
-    public string TargetType { get; }
-    public string TargetId { get; }
-    public string? TargetName { get; }
-    public string Action { get; }
-    public object? OldValues { get; }
-    public object? NewValues { get; }
-    public string? Reason { get; }
-    public string IpAddress { get; }
-    public string UserAgent { get; }
-    public bool Success { get; }
-    public string? FailureReason { get; }
-    public DateTimeOffset CreatedAt { get; }
+    public Guid AdminId { get; private set; }
+    public string AdminName { get; private set; }
+    public string OperationType { get; private set; }
+    public string TargetType { get; private set; }
+    public string TargetId { get; private set; }
+    public string? TargetName { get; private set; }
+    public string Action { get; private set; }
+    public object? OldValues { get; private set; }
+    public object? NewValues { get; private set; }
+    public string? Reason { get; private set; }
+    public string IpAddress { get; private set; }
+    public string UserAgent { get; private set; }
+    public bool Success { get; private set; }
+    public string? FailureReason { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public bool IsReverted { get; private set; }
     public DateTimeOffset? RevertedAt { get; private set; }
     public Guid? RevertedBy { get; private set; }

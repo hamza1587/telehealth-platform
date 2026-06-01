@@ -31,7 +31,7 @@ public sealed class DoctorPricing : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid DoctorProfileId { get; }
+    public Guid DoctorProfileId { get; private set; }
     public Money PricePerSecond { get; private set; }
     public Money? VideoCallSurcharge { get; private set; }
     public Money? PhoneCallSurcharge { get; private set; }
@@ -39,7 +39,7 @@ public sealed class DoctorPricing : Entity<Guid>
     public bool IsInstantConsultationEnabled { get; private set; }
     public Money? InstantConsultationPremium { get; private set; }
     public bool IsActive { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void UpdatePricing(

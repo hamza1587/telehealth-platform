@@ -25,12 +25,12 @@ public sealed class GdprDataExport : Entity<Guid>
         EstimatedCompletion = createdAt.AddHours(24);
     }
 
-    public Guid UserId { get; }
-    public string UserType { get; }
-    public string Email { get; }
-    public string Format { get; }
+    public Guid UserId { get; private set; }
+    public string UserType { get; private set; }
+    public string Email { get; private set; }
+    public string Format { get; private set; }
     public GdprExportStatus Status { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset EstimatedCompletion { get; private set; }
     public DateTimeOffset? StartedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }

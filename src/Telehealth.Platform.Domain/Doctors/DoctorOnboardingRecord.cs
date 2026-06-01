@@ -44,7 +44,7 @@ public sealed class DoctorOnboardingRecord : Entity<Guid>
         UpdatedAt = updatedAt;
     }
 
-    public Guid DoctorProfileId { get; }
+    public Guid DoctorProfileId { get; private set; }
 
     public string LegalName { get; private set; }
 
@@ -74,7 +74,7 @@ public sealed class DoctorOnboardingRecord : Entity<Guid>
 
     public string? ReviewNotes { get; private set; }
 
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
 

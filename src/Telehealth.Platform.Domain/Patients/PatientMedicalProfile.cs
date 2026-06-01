@@ -60,7 +60,7 @@ public sealed class PatientMedicalProfile : Entity<Guid>
         UpdatedAt = updatedAt;
     }
 
-    public Guid PatientAccountId { get; }
+    public Guid PatientAccountId { get; private set; }
 
     public DateOnly DateOfBirth { get; private set; }
 
@@ -106,7 +106,7 @@ public sealed class PatientMedicalProfile : Entity<Guid>
 
     public bool MedicalDisclaimerAccepted { get; private set; }
 
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
 

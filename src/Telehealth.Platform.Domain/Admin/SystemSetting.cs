@@ -36,7 +36,7 @@ public sealed class SystemSetting : Entity<Guid>
     public string? Category { get; private set; }
     public bool IsEncrypted { get; private set; }
     public bool IsActive { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void Update(string value, string? description, DateTimeOffset updatedAt)

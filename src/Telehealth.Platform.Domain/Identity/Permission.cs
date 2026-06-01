@@ -20,7 +20,7 @@ public sealed class Permission : Entity<Guid>
     public string Name { get; private set; }
     public string Category { get; private set; }
     public string? Description { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
 
     public ICollection<RolePermission> RolePermissions { get; private set; } = [];
 }

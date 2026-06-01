@@ -28,15 +28,15 @@ public sealed class DoctorVerificationDocument : Entity<Guid>
         UploadedAt = uploadedAt;
     }
 
-    public Guid DoctorProfileId { get; }
-    public string DocumentType { get; }
-    public string FileName { get; }
+    public Guid DoctorProfileId { get; private set; }
+    public string DocumentType { get; private set; }
+    public string FileName { get; private set; }
     public string FileUrl { get; private set; }
-    public string? MimeType { get; }
-    public long FileSize { get; }
+    public string? MimeType { get; private set; }
+    public long FileSize { get; private set; }
     public DocumentVerificationStatus Status { get; private set; }
     public string? RejectionReason { get; private set; }
-    public DateTimeOffset UploadedAt { get; }
+    public DateTimeOffset UploadedAt { get; private set; }
     public DateTimeOffset? ReviewedAt { get; private set; }
     public string? ReviewedBy { get; private set; }
 

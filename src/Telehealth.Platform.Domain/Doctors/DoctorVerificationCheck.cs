@@ -24,13 +24,13 @@ public sealed class DoctorVerificationCheck : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid DoctorProfileId { get; }
+    public Guid DoctorProfileId { get; private set; }
     public string CheckType { get; private set; }
     public VerificationCheckStatus Status { get; private set; }
     public string? Notes { get; private set; }
     public string? VerifiedBy { get; private set; }
     public string? ExternalReference { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
 

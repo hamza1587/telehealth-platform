@@ -32,7 +32,7 @@ public sealed class DoctorInstantAvailability : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid DoctorProfileId { get; }
+    public Guid DoctorProfileId { get; private set; }
     public bool IsAvailable { get; private set; }
     public int? MaxQueueSize { get; private set; }
     public int CurrentQueueSize { get; private set; }
@@ -41,7 +41,7 @@ public sealed class DoctorInstantAvailability : Entity<Guid>
     public List<string> AvailableSpecialties { get; private set; }
     public List<ConsultationMode> AvailableModes { get; private set; }
     public DateTimeOffset LastStatusChangeAt { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void SetAvailable(DateTimeOffset changedAt)

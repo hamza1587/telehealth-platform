@@ -37,9 +37,9 @@ public sealed class Prescription : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid ConsultationSessionId { get; }
-    public Guid PatientAccountId { get; }
-    public Guid DoctorProfileId { get; }
+    public Guid ConsultationSessionId { get; private set; }
+    public Guid PatientAccountId { get; private set; }
+    public Guid DoctorProfileId { get; private set; }
     public string PrescriptionType { get; private set; }
     public string? Notes { get; private set; }
     public int? DurationDays { get; private set; }
@@ -48,7 +48,7 @@ public sealed class Prescription : Entity<Guid>
     public int? RefillsAllowed { get; private set; }
     public int RefillsUsed { get; private set; }
     public PrescriptionStatus Status { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
     public DateTimeOffset? DispensedAt { get; private set; }
     public string? PharmacyId { get; private set; }

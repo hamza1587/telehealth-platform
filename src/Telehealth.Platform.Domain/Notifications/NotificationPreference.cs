@@ -28,7 +28,7 @@ public sealed class NotificationPreference : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid UserId { get; }
+    public Guid UserId { get; private set; }
     public string NotificationType { get; private set; }
     public bool EmailEnabled { get; private set; }
     public bool PushEnabled { get; private set; }
@@ -37,7 +37,7 @@ public sealed class NotificationPreference : Entity<Guid>
     public bool IsMuted { get; private set; }
     public TimeOnly? QuietHoursStart { get; private set; }
     public TimeOnly? QuietHoursEnd { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void Update(

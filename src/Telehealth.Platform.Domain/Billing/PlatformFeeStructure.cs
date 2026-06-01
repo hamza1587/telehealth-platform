@@ -40,7 +40,7 @@ public sealed class PlatformFeeStructure : Entity<Guid>
     public bool IsActive { get; private set; }
     public DateTimeOffset EffectiveFrom { get; private set; }
     public DateTimeOffset? EffectiveTo { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void Update(

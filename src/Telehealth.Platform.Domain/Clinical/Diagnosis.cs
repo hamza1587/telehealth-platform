@@ -38,8 +38,8 @@ public sealed class Diagnosis : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid PatientAccountId { get; }
-    public Guid? ConsultationSessionId { get; }
+    public Guid PatientAccountId { get; private set; }
+    public Guid? ConsultationSessionId { get; private set; }
     public string Icd10Code { get; private set; }
     public string Name { get; private set; }
     public string? Description { get; private set; }
@@ -48,8 +48,8 @@ public sealed class Diagnosis : Entity<Guid>
     public DateOnly? OnsetDate { get; private set; }
     public DateOnly? ResolutionDate { get; private set; }
     public string? Severity { get; private set; }
-    public Guid DoctorProfileId { get; }
-    public DateTimeOffset CreatedAt { get; }
+    public Guid DoctorProfileId { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void Update(

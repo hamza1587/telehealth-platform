@@ -33,7 +33,7 @@ public sealed class AllergyIntolerance : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid PatientAccountId { get; }
+    public Guid PatientAccountId { get; private set; }
     public string Substance { get; private set; }
     public string? SubstanceCode { get; private set; }
     public AllergyCategory Category { get; private set; }
@@ -42,7 +42,7 @@ public sealed class AllergyIntolerance : Entity<Guid>
     public string? Onset { get; private set; }
     public string? Note { get; private set; }
     public AllergyStatus Status { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void Update(

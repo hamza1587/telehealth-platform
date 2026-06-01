@@ -55,7 +55,7 @@ public sealed class DeviceAuthorization : Entity<Guid>
     public DeviceTrustLevel TrustLevel { get; private set; }
 
     // Timestamps
-    public DateTimeOffset FirstSeenAt { get; }
+    public DateTimeOffset FirstSeenAt { get; private set; }
     public DateTimeOffset LastSeenAt { get; private set; }
     public DateTimeOffset? RevokedAt { get; private set; }
     public string? RevokedReason { get; private set; }

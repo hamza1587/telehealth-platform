@@ -34,18 +34,18 @@ public sealed class WalletTransaction : Entity<Guid>
         CreatedAt = createdAt;
     }
 
-    public Guid WalletId { get; }
-    public Guid PatientAccountId { get; }
-    public TransactionType Type { get; }
-    public decimal Amount { get; }
-    public string Currency { get; }
-    public decimal BalanceAfter { get; }
+    public Guid WalletId { get; private set; }
+    public Guid PatientAccountId { get; private set; }
+    public TransactionType Type { get; private set; }
+    public decimal Amount { get; private set; }
+    public string Currency { get; private set; }
+    public decimal BalanceAfter { get; private set; }
     public TransactionStatus Status { get; private set; }
-    public string? Description { get; }
-    public string? ReferenceId { get; }
-    public string? PaymentMethod { get; }
+    public string? Description { get; private set; }
+    public string? ReferenceId { get; private set; }
+    public string? PaymentMethod { get; private set; }
     public string? FailureReason { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? ProcessedAt { get; private set; }
 
     public void MarkAsFailed(string reason, DateTimeOffset processedAt)

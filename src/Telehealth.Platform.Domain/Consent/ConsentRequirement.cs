@@ -30,7 +30,7 @@ public sealed class ConsentRequirement : Entity<Guid>
     public bool IsRequired { get; private set; }
     public int MinimumAge { get; private set; }
     public bool IsActive { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void Update(bool isRequired, int minimumAge, DateTimeOffset updatedAt)

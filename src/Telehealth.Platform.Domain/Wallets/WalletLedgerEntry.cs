@@ -26,19 +26,19 @@ public sealed class WalletLedgerEntry : Entity<Guid>
         CreatedAt = createdAt;
     }
 
-    public Guid WalletId { get; }
+    public Guid WalletId { get; private set; }
 
-    public WalletLedgerEntryType EntryType { get; }
+    public WalletLedgerEntryType EntryType { get; private set; }
 
-    public long SecondsDelta { get; }
+    public long SecondsDelta { get; private set; }
 
-    public long BalanceAfterSeconds { get; }
+    public long BalanceAfterSeconds { get; private set; }
 
-    public string ReferenceType { get; }
+    public string ReferenceType { get; private set; }
 
-    public string ReferenceId { get; }
+    public string ReferenceId { get; private set; }
 
-    public string Reason { get; }
+    public string Reason { get; private set; }
 
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
 }

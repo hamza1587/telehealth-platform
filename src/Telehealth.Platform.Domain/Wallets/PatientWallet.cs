@@ -24,13 +24,13 @@ public sealed class PatientWallet : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid PatientAccountId { get; }
+    public Guid PatientAccountId { get; private set; }
     public decimal Balance { get; private set; }
     public decimal TotalDeposited { get; private set; }
     public decimal TotalSpent { get; private set; }
     public string Currency { get; private set; }
     public bool IsActive { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void Deposit(decimal amount, DateTimeOffset updatedAt)

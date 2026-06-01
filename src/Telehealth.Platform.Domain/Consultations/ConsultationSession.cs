@@ -15,13 +15,13 @@ public sealed class ConsultationSession : Entity<Guid>
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public Guid ConsultationBookingId { get; }
+    public Guid ConsultationBookingId { get; private set; }
 
     public string? MedplumEncounterId { get; private set; }
 
-    public string VideoProvider { get; }
+    public string VideoProvider { get; private set; }
 
-    public string VideoRoomId { get; }
+    public string VideoRoomId { get; private set; }
 
     public ConsultationSessionStatus Status { get; private set; }
 

@@ -41,7 +41,7 @@ public sealed class PrescriptionItem : Entity<Guid>
         UpdatedAt = createdAt;
     }
 
-    public Guid PrescriptionId { get; }
+    public Guid PrescriptionId { get; private set; }
     public string MedicationCode { get; private set; }
     public string MedicationName { get; private set; }
     public string Dosage { get; private set; }
@@ -54,7 +54,7 @@ public sealed class PrescriptionItem : Entity<Guid>
     public bool IsAsNeeded { get; private set; }
     public string? AsNeededReason { get; private set; }
     public bool IsSubstitutable { get; private set; }
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public void Update(

@@ -29,12 +29,12 @@ public sealed class TicketComment : Entity<Guid>
         CreatedAt = createdAt;
     }
 
-    public Guid TicketId { get; }
-    public Guid AuthorId { get; }
-    public string AuthorType { get; }
-    public string AuthorName { get; }
-    public string Content { get; }
-    public bool IsInternal { get; }
-    public List<string> Attachments { get; }
-    public DateTimeOffset CreatedAt { get; }
+    public Guid TicketId { get; private set; }
+    public Guid AuthorId { get; private set; }
+    public string AuthorType { get; private set; }
+    public string AuthorName { get; private set; }
+    public string Content { get; private set; }
+    public bool IsInternal { get; private set; }
+    public List<string> Attachments { get; private set; }
+    public DateTimeOffset CreatedAt { get; private set; }
 }
