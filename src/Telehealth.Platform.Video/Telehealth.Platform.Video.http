@@ -1,0 +1,6 @@
+@Telehealth.Platform.Video_HostAddress = http://localhost:5036
+
+GET {{Telehealth.Platform.Video_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

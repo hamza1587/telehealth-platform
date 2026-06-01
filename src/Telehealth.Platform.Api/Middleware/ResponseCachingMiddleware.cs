@@ -38,7 +38,7 @@ public class ResponseCachingMiddleware
 
         if (context.Response.StatusCode == 200)
         {
-            context.Response.Headers.Add("Cache-Control", "public, max-age=300");
+            context.Response.Headers["Cache-Control"] = "public, max-age=300";
         }
     }
 

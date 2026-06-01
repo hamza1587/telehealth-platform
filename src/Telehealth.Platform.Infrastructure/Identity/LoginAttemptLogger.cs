@@ -20,7 +20,7 @@ public sealed class LoginAttemptLogger : ILoginAttemptLogger
     public async Task LogSuccessfulAttemptAsync(
         string userId,
         string email,
-        string ipAddress,
+        string? ipAddress,
         string? userAgent,
         string? deviceId,
         string? mfaMethod)
@@ -45,7 +45,7 @@ public sealed class LoginAttemptLogger : ILoginAttemptLogger
     public async Task LogFailedAttemptAsync(
         string? userId,
         string? email,
-        string ipAddress,
+        string? ipAddress,
         string? userAgent,
         string? deviceId,
         LoginAttemptResult result,

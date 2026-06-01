@@ -59,11 +59,12 @@ public class StripePaymentGateway : IPaymentGateway
         {
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
             _logger.LogError("Stripe authorization failed: {Error}", error);
-            return null;
+            throw new InvalidOperationException($"Stripe authorization failed: {error}");
         }
 
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        var stripeResponse = JsonSerializer.Deserialize<StripeChargeResponse>(responseContent);
+        var stripeResponse = JsonSerializer.Deserialize<StripeChargeResponse>(responseContent)
+            ?? throw new InvalidOperationException("Stripe returned an empty authorization response.");
 
         return PaymentTransaction.Create(
             payment.Id,
@@ -98,11 +99,12 @@ public class StripePaymentGateway : IPaymentGateway
         {
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
             _logger.LogError("Stripe capture failed: {Error}", error);
-            return null;
+            throw new InvalidOperationException($"Stripe capture failed: {error}");
         }
 
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        var stripeResponse = JsonSerializer.Deserialize<StripeChargeResponse>(responseContent);
+        var stripeResponse = JsonSerializer.Deserialize<StripeChargeResponse>(responseContent)
+            ?? throw new InvalidOperationException("Stripe returned an empty capture response.");
 
         return PaymentTransaction.Create(
             payment.Id,
@@ -136,11 +138,12 @@ public class StripePaymentGateway : IPaymentGateway
         {
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
             _logger.LogError("Stripe refund failed: {Error}", error);
-            return null;
+            throw new InvalidOperationException($"Stripe refund failed: {error}");
         }
 
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        var stripeResponse = JsonSerializer.Deserialize<StripeRefundResponse>(responseContent);
+        var stripeResponse = JsonSerializer.Deserialize<StripeRefundResponse>(responseContent)
+            ?? throw new InvalidOperationException("Stripe returned an empty refund response.");
 
         return PaymentTransaction.Create(
             refund.PaymentId,
@@ -167,7 +170,7 @@ public class StripePaymentGateway : IPaymentGateway
         {
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
             _logger.LogError("Stripe void failed: {Error}", error);
-            return null;
+            throw new InvalidOperationException($"Stripe void failed: {error}");
         }
 
         return PaymentTransaction.Create(
@@ -207,7 +210,7 @@ public class StripePaymentGateway : IPaymentGateway
         };
     }
 
-    private PaymentTransactionStatus MapStripeStatus(string status)
+    private static PaymentTransactionStatus MapStripeStatus(string? status)
     {
         return status?.ToLower() switch
         {

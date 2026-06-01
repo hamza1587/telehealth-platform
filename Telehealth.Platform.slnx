@@ -3,7 +3,13 @@
     <Project Path="src/Telehealth.Platform.Api/Telehealth.Platform.Api.csproj" />
     <Project Path="src/Telehealth.Platform.Application/Telehealth.Platform.Application.csproj" />
     <Project Path="src/Telehealth.Platform.Domain/Telehealth.Platform.Domain.csproj" />
+    <Project Path="src/Telehealth.Platform.EHDS/Telehealth.Platform.EHDS.csproj" />
     <Project Path="src/Telehealth.Platform.Infrastructure/Telehealth.Platform.Infrastructure.csproj" />
+    <Project Path="src/Telehealth.Platform.Integrations.Healthcare/Telehealth.Platform.Integrations.Healthcare.csproj" />
     <Project Path="src/Telehealth.Platform.Integrations.Medplum/Telehealth.Platform.Integrations.Medplum.csproj" />
+    <Project Path="src/Telehealth.Platform.Video/Telehealth.Platform.Video.csproj" />
+    <Project Path="src/Telehealth.Platform.Localization/Telehealth.Platform.Localization.csproj" />
+    <Project Path="src/Telehealth.Platform.Prescription/Telehealth.Platform.Prescription.csproj" />
+    <Project Path="src/Telehealth.Platform.Analytics/Telehealth.Platform.Analytics.csproj" />
   </Folder>
 </Solution>

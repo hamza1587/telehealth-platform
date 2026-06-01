@@ -842,7 +842,7 @@ public sealed class AuthenticationService : IAuthenticationService
 /// </summary>
 public interface ILoginAttemptLogger
 {
-    Task LogSuccessfulAttemptAsync(string userId, string email, string ipAddress, string? userAgent, string? deviceId, string? mfaMethod);
-    Task LogFailedAttemptAsync(string? userId, string? email, string ipAddress, string? userAgent, string? deviceId, LoginAttemptResult result, string reason);
-    Task LogMfaRequiredAsync(string userId, string email, string ipAddress, string? userAgent, string? deviceId);
+    Task LogSuccessfulAttemptAsync(string userId, string email, string? ipAddress, string? userAgent, string? deviceId, string? mfaMethod);
+    Task LogFailedAttemptAsync(string? userId, string? email, string? ipAddress, string? userAgent, string? deviceId, LoginAttemptResult result, string reason);
+    Task LogMfaRequiredAsync(string userId, string email, string? ipAddress, string? userAgent, string? deviceId);
 }

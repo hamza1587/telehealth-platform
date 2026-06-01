@@ -1,0 +1,6 @@
+@Telehealth.Platform.Analytics_HostAddress = http://localhost:5274
+
+GET {{Telehealth.Platform.Analytics_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

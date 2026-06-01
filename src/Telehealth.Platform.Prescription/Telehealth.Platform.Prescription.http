@@ -1,0 +1,6 @@
+@Telehealth.Platform.Prescription_HostAddress = http://localhost:5112
+
+GET {{Telehealth.Platform.Prescription_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

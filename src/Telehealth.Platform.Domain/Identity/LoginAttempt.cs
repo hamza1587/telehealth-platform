@@ -12,7 +12,7 @@ public sealed class LoginAttempt : Entity<Guid>
         Guid id,
         string? userId,
         string? email,
-        string ipAddress,
+        string? ipAddress,
         string? userAgent,
         string? deviceId,
         LoginAttemptResult result,
@@ -33,7 +33,7 @@ public sealed class LoginAttempt : Entity<Guid>
 
     public string? UserId { get; private set; }
     public string? Email { get; private set; }
-    public string IpAddress { get; private set; }
+    public string? IpAddress { get; private set; }
     public string? UserAgent { get; private set; }
     public string? DeviceId { get; private set; }
 

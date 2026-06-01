@@ -62,5 +62,5 @@ public class PaymentResult
 {
     public bool Success { get; set; }
     public string TransactionId { get; set; } = string.Empty;
-    public IPAddress ClientIp { get; set; }
+    public IPAddress? ClientIp { get; set; }
 }

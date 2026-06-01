@@ -191,7 +191,16 @@ public class TeleconsultationService : ITeleconsultationService
 	{
 		var fromDate = from ?? DateTimeOffset.UtcNow;
 		var toDate = to ?? fromDate.AddDays(30);
-		return await _dbContext.DoctorAvailabilityWindows.Where(w => w.DoctorProfileId == doctorId && w.StartsAt >= fromDate && w.EndsAt <= toDate).Select(w => new AvailabilitySlotDto(w.Id, w.StartsAt, w.EndsAt, w.ConsultationMode, w.IsInstantEnabled)).ToListAsync(cancellationToken);
+		// ConsultationMode is stored as string in the domain entity; parse to enum for the DTO.
+		var windows = await _dbContext.DoctorAvailabilityWindows
+			.Where(w => w.DoctorProfileId == doctorId && w.StartsAt >= fromDate && w.EndsAt <= toDate)
+			.ToListAsync(cancellationToken);
+		return windows.Select(w => new AvailabilitySlotDto(
+			w.Id,
+			w.StartsAt,
+			w.EndsAt,
+			Enum.TryParse<ConsultationMode>(w.ConsultationMode, ignoreCase: true, out var mode) ? mode : ConsultationMode.Video,
+			w.IsInstantEnabled));
 	}
 
 	public async Task<DoctorScheduleDto> GetDoctorScheduleAsync(Guid doctorId, DateTimeOffset? from, DateTimeOffset? to, CancellationToken cancellationToken = default)
@@ -207,7 +216,8 @@ public class TeleconsultationService : ITeleconsultationService
 	{
 		foreach (var slot in request.Slots)
 		{
-			var window = DoctorAvailabilityWindow.Create(doctorId, slot.StartsAt, slot.EndsAt, slot.ConsultationMode, slot.IsInstantEnabled);
+			// DoctorAvailabilityWindow stores ConsultationMode as a string; convert from enum.
+			var window = DoctorAvailabilityWindow.Create(doctorId, slot.StartsAt, slot.EndsAt, slot.ConsultationMode.ToString(), slot.IsInstantEnabled);
 			await _dbContext.DoctorAvailabilityWindows.AddAsync(window, cancellationToken);
 		}
 		await _dbContext.SaveChangesAsync(cancellationToken);

@@ -1,0 +1,6 @@
+@Telehealth.Platform.EHDS_HostAddress = http://localhost:5173
+
+GET {{Telehealth.Platform.EHDS_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

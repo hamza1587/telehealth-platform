@@ -7,39 +7,134 @@ namespace Telehealth.Platform.Infrastructure.Doctors;
 
 public class DoctorProfileService : IDoctorProfileService
 {
-	private readonly PlatformDbContext _dbContext;
+    private readonly PlatformDbContext _dbContext;
 
-	public DoctorProfileService(PlatformDbContext dbContext)
-	{
-		_dbContext = dbContext;
-	}
+    public DoctorProfileService(PlatformDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
 
-	public async Task<IEnumerable<DoctorProfile>> SearchDoctorsAsync(string? specialty, string? query, CancellationToken cancellationToken = default)
-	{
-		var doctors = _dbContext.DoctorProfiles.AsQueryable();
+    // ── Queries ──────────────────────────────────────────────────────────────
 
-		if (!string.IsNullOrWhiteSpace(specialty))
-		{
-			doctors = doctors.Where(d => d.Specialty != null && d.Specialty.Contains(specialty));
-		}
+    public async Task<DoctorProfile?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.DoctorProfiles
+            .FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
+    }
 
-		if (!string.IsNullOrWhiteSpace(query))
-		{
-			doctors = doctors.Where(d => (d.FullName != null && d.FullName.Contains(query)) || (d.Specialty != null && d.Specialty.Contains(query)));
-		}
+    public async Task<DoctorProfile?> GetByMedplumIdAsync(Guid medplumPractitionerId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.DoctorProfiles
+            .FirstOrDefaultAsync(d => d.MedplumPractitionerId == medplumPractitionerId, cancellationToken);
+    }
 
-		return await doctors.ToListAsync(cancellationToken);
-	}
+    public async Task<IEnumerable<DoctorProfile>> SearchAsync(
+        string? specialty,
+        string? countryCode,
+        DoctorMarketplaceStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.DoctorProfiles
+            .Where(d => d.MarketplaceStatus == status);
 
-	public async Task<DoctorProfile?> GetByIdAsync(Guid doctorProfileId, CancellationToken cancellationToken = default)
-	{
-		return await _dbContext.DoctorProfiles.FirstOrDefaultAsync(d => d.Id == doctorProfileId, cancellationToken);
-	}
+        if (!string.IsNullOrWhiteSpace(specialty))
+            query = query.Where(d => d.PrimarySpecialty.Contains(specialty));
 
-	public async Task<IEnumerable<DoctorAvailabilityWindow>> GetAvailabilityAsync(Guid doctorProfileId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
-	{
-		return await _dbContext.DoctorAvailabilityWindows
-			.Where(w => w.DoctorProfileId == doctorProfileId && w.StartsAt >= from && w.EndsAt <= to)
-			.ToListAsync(cancellationToken);
-	}
+        if (!string.IsNullOrWhiteSpace(countryCode))
+            query = query.Where(d => d.CountryCode == countryCode);
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<DoctorAvailabilityWindow>> GetAvailabilityAsync(
+        Guid doctorProfileId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.DoctorAvailabilityWindows
+            .Where(w => w.DoctorProfileId == doctorProfileId
+                     && w.StartsAt >= from
+                     && w.EndsAt <= to)
+            .ToListAsync(cancellationToken);
+    }
+
+    // ── Commands ─────────────────────────────────────────────────────────────
+
+    public async Task<DoctorProfile> CreateAsync(
+        Guid medplumPractitionerId,
+        string displayName,
+        string countryCode,
+        string primarySpecialty,
+        int defaultPricePerSecondMinor,
+        string currency,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = DoctorProfile.Create(
+            medplumPractitionerId,
+            displayName,
+            countryCode,
+            primarySpecialty,
+            defaultPricePerSecondMinor,
+            currency);
+
+        _dbContext.DoctorProfiles.Add(profile);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return profile;
+    }
+
+    public async Task UpdateProfileAsync(
+        Guid id,
+        string displayName,
+        string countryCode,
+        string primarySpecialty,
+        int defaultPricePerSecondMinor,
+        string currency,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = await GetByIdAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException($"Doctor profile {id} not found.");
+
+        profile.UpdateProfile(displayName, countryCode, primarySpecialty, defaultPricePerSecondMinor, currency);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SubmitForVerificationAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var profile = await GetByIdAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException($"Doctor profile {id} not found.");
+
+        profile.SubmitForVerification();
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApproveVerificationAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var profile = await GetByIdAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException($"Doctor profile {id} not found.");
+
+        profile.ApproveVerification();
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectVerificationAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var profile = await GetByIdAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException($"Doctor profile {id} not found.");
+
+        profile.RejectVerification();
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateMarketplaceStatusAsync(
+        Guid id,
+        DoctorMarketplaceStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = await GetByIdAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException($"Doctor profile {id} not found.");
+
+        profile.UpdateMarketplaceStatus(status);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
 }
