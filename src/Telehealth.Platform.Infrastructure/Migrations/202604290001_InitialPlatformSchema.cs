@@ -1,9 +1,15 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Telehealth.Platform.Infrastructure.Persistence;
+using DbContextAttribute = Microsoft.EntityFrameworkCore.Infrastructure.DbContextAttribute;
 
 #nullable disable
 
-namespace Telehealth.Platform.Infrastructure.Persistence.Migrations;
+namespace Telehealth.Platform.Infrastructure.Migrations;
 
+[DbContextAttribute(typeof(PlatformDbContext))]
+[Migration("202604290001_InitialPlatformSchema")]
 public partial class InitialPlatformSchema : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -354,3 +360,5 @@ public partial class InitialPlatformSchema : Migration
             """);
     }
 }
+
+

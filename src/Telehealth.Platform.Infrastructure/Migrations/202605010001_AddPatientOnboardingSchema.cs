@@ -1,9 +1,14 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Telehealth.Platform.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace Telehealth.Platform.Infrastructure.Persistence.Migrations;
+namespace Telehealth.Platform.Infrastructure.Migrations;
 
+[DbContextAttribute(typeof(PlatformDbContext))]
+[Migration("202605010001_AddPatientOnboardingSchema")]
 public partial class AddPatientOnboardingSchema : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -72,3 +77,4 @@ public partial class AddPatientOnboardingSchema : Migration
             """);
     }
 }
+

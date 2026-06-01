@@ -1,13 +1,18 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Telehealth.Platform.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace Telehealth.Platform.Infrastructure.Persistence.Migrations;
+namespace Telehealth.Platform.Infrastructure.Migrations;
 
 /// <summary>
 /// Migration to add comprehensive identity and authentication schema.
 /// Includes users, roles, permissions, MFA, device management, and audit logging.
 /// </summary>
+[DbContextAttribute(typeof(PlatformDbContext))]
+[Migration("202605010003_AddIdentitySchema")]
 public partial class AddIdentitySchema : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -211,3 +216,4 @@ public partial class AddIdentitySchema : Migration
             """);
     }
 }
+

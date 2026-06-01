@@ -31,6 +31,7 @@ using Telehealth.Platform.Integrations.Medplum.Health;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddControllers();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("WebClient", policy =>
