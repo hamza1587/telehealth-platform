@@ -172,6 +172,33 @@ public class NationalPrescriptionGateway : INationalPrescriptionGateway
             return null;
         }
     }
+
+    public async Task<string> SyncWithPrescriptionSystemAsync(string countryCode)
+    {
+        try
+        {
+            var syncApiUrl = _configuration[$"PrescriptionSystems:{countryCode}:ApiUrl"];
+            var syncApiKey = _configuration[$"PrescriptionSystems:{countryCode}:ApiKey"];
+
+            if (string.IsNullOrEmpty(syncApiUrl))
+            {
+                return $"Prescription system {countryCode} not configured";
+            }
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{syncApiUrl}/api/v1/sync");
+            request.Headers.Add("X-API-Key", syncApiKey ?? string.Empty);
+            
+            var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            
+            var result = await response.Content.ReadAsStringAsync();
+            return $"Synced with prescription system {countryCode}: {result}";
+        }
+        catch (Exception ex)
+        {
+            return $"Failed to sync with prescription system {countryCode}: {ex.Message}";
+        }
+    }
 }
 
 // Response DTOs for national e-prescription API

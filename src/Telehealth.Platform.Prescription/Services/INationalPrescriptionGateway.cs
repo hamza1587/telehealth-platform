@@ -7,4 +7,5 @@ public interface INationalPrescriptionGateway
     Task<string> SendPrescriptionAsync(Domain.Models.Prescription prescription, string? pharmacyId = null);
     Task<bool> ValidateSignatureAsync(string digitalSignature);
     Task<Domain.Models.Prescription?> GetPrescriptionStatusAsync(string nationalPrescriptionId);
+    Task<string> SyncWithPrescriptionSystemAsync(string countryCode);
 }

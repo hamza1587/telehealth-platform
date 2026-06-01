@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Telehealth.Platform.Domain.Entities;
 
 namespace Telehealth.Platform.Integrations.Healthcare;
 
@@ -25,13 +24,12 @@ public class HealthcareIntegrationsDbContext : DbContext
             entity.Property(e => e.LabSystemId).IsRequired().HasMaxLength(100);
             entity.Property(e => e.TestCode).IsRequired().HasMaxLength(50);
             entity.Property(e => e.TestName).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Value).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Value).IsRequired();
             entity.Property(e => e.Unit).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.ReferenceRange).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.SampleDate).IsRequired();
+            entity.Property(e => e.ReferenceRange).HasMaxLength(100);
             entity.Property(e => e.ResultDate).IsRequired();
-            entity.Property(e => e.IsAbnormal).IsRequired();
+            entity.Property(e => e.SampleDate).IsRequired();
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
         });
 
         modelBuilder.Entity<InsuranceClaim>(entity =>
@@ -41,11 +39,12 @@ public class HealthcareIntegrationsDbContext : DbContext
             entity.Property(e => e.ConsultationId).IsRequired();
             entity.Property(e => e.InsuranceProviderId).IsRequired().HasMaxLength(100);
             entity.Property(e => e.PolicyNumber).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Amount).IsRequired().HasPrecision(18, 2);
+            entity.Property(e => e.Amount).IsRequired();
             entity.Property(e => e.Currency).IsRequired().HasMaxLength(3);
             entity.Property(e => e.ServiceType).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
             entity.Property(e => e.SubmittedDate).IsRequired();
+            entity.Property(e => e.ProcessedDate);
             entity.Property(e => e.ClaimNumber).HasMaxLength(100);
             entity.Property(e => e.RejectionReason).HasMaxLength(500);
         });

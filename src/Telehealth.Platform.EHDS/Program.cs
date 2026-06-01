@@ -17,6 +17,7 @@ builder.Services.AddDbContext<EhdsDbContext>(options =>
 builder.Services.AddScoped<IPatientHealthRecordService, PatientHealthRecordService>();
 builder.Services.AddScoped<IResearchExportService, ResearchExportService>();
 builder.Services.AddScoped<IDeIdentificationService, DeIdentificationService>();
+builder.Services.AddScoped<IRegulatoryRuleEngine, RegulatoryRuleEngine>();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -28,6 +29,10 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader();
     });
 });
+
+// Add localization services
+builder.Services.AddScoped<ILocalizationService, LocalizationService>();
+builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 
 var app = builder.Build();
 
