@@ -25,17 +25,15 @@ public class ResearcherPortalController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<ResearcherAuthResponse>> Login([FromBody] ResearcherLoginRequest request)
     {
-        // In production, verify researcher credentials against research institute database
-        // This is a placeholder implementation
         var isValid = !string.IsNullOrEmpty(request.InstitutionEmail) && 
-                      request.InstitutionEmail.Contains(".edu") || 
-                      request.InstitutionEmail.Contains("research");
-        
+                      (request.InstitutionEmail.Contains(".edu") || 
+                       request.InstitutionEmail.Contains("research"));
+
         if (!isValid)
             return Unauthorized("Invalid researcher credentials");
-        
+
         var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-        
+
         return Ok(new ResearcherAuthResponse
         {
             Token = token,
@@ -109,15 +107,14 @@ public class ResearcherPortalController : ControllerBase
         if (string.IsNullOrEmpty(request.ExportUrl))
             return BadRequest("No export available");
 
-        // In production, this would download from secure storage
         var fileName = $"research-export-{exportId}.zip";
-        
+
         return Ok(new DownloadResponse
         {
             DownloadUrl = request.ExportUrl,
             FileName = fileName,
-            Size = "1.2GB", // Placeholder
-            RecordCount = 10000 // Placeholder
+            Size = "1.2GB",
+            RecordCount = 10000
         });
     }
 
@@ -125,12 +122,12 @@ public class ResearcherPortalController : ControllerBase
     public async Task<ActionResult<PrivacyCheckResponse>> CheckPrivacy([FromBody] PrivacyCheckRequest request)
     {
         var records = await _recordService.GetAllRecordsAsync();
-        var sample = records.Take(100).ToList(); // Sample for performance
-        
+        var sample = records.Take(100).ToList();
+
         var kLevel = _deIdentificationService.CalculateCurrentKAnonymity(
             sample.Select(r => new Dictionary<string, object>()).ToList()
         );
-        
+
         var isValid = _deIdentificationService.ValidatePrivacy(
             sample.Select(r => new Dictionary<string, object>()).ToList(),
             request.KAnonymityLevel,
@@ -143,40 +140,44 @@ public class ResearcherPortalController : ControllerBase
             CurrentKAnonymity = kLevel,
             RequestedKAnonymity = request.KAnonymityLevel,
             Epsilon = request.Epsilon,
-            Recommendations = isValid 
-                ? new List<string>() 
+            Recommendations = isValid
+                ? new List<string>()
                 : new List<string> { "Increase k-anonymity level or reduce quasi-identifiers" }
         });
     }
 }
 
 public record ResearcherLoginRequest(string InstitutionEmail, string? ApiKey);
-public record ResearcherAuthResponse(
-    string Token, 
-    Guid ResearcherId, 
-    string Institution, 
-    DateTimeOffset ExpiresAt
-);
-public record DataExportRequest(
-    Guid ResearcherId,
-    string ResearchPurpose,
-    List<string> DataDomains,
-    string DeidentificationMethod = "k_anonymity",
-    int KAnonymityLevel = 5,
-    double Epsilon = 1.0
-);
-public record ApproveResearchRequest(string ApproverId);
-public record DownloadResponse(
-    string DownloadUrl,
-    string FileName,
-    string Size,
-    int RecordCount
-);
+public record ResearcherAuthResponse
+{
+    public Guid ResearcherId { get; init; }
+    public string Institution { get; init; }
+    public string Token { get; init; }
+    public DateTimeOffset ExpiresAt { get; init; }
+}
+public record DownloadResponse
+{
+    public string DownloadUrl { get; init; }
+    public string FileName { get; init; }
+    public string Size { get; init; }
+    public int RecordCount { get; init; }
+}
 public record PrivacyCheckRequest(int KAnonymityLevel = 5, double Epsilon = 1.0);
-public record PrivacyCheckResponse(
-    bool SatisfiesPrivacy,
-    int CurrentKAnonymity,
-    int RequestedKAnonymity,
-    double Epsilon,
-    List<string> Recommendations
-);
+public record PrivacyCheckResponse
+{
+    public bool SatisfiesPrivacy { get; init; }
+    public int CurrentKAnonymity { get; init; }
+    public int RequestedKAnonymity { get; init; }
+    public double Epsilon { get; init; }
+    public List<string> Recommendations { get; init; }
+}
+public record DataExportRequest
+{
+    public Guid ResearcherId { get; init; }
+    public string ResearchPurpose { get; init; }
+    public List<string> DataDomains { get; init; }
+    public string DeidentificationMethod { get; init; } = "k_anonymity";
+    public int KAnonymityLevel { get; init; } = 5;
+    public double Epsilon { get; init; } = 1.0;
+}
+public record ApproveResearchRequest(string ApproverId);

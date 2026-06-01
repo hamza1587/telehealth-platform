@@ -11,6 +11,11 @@ public class DashboardMetrics : Entity<Guid>
     public DateTimeOffset PeriodEnd { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
+    public DashboardMetrics() : base(Guid.NewGuid())
+    {
+        CreatedAt = DateTimeOffset.UtcNow;
+    }
+
     private DashboardMetrics(
         Guid id,
         string metricType,

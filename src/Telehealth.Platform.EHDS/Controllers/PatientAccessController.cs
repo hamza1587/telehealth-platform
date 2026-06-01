@@ -157,54 +157,66 @@ public class PatientAccessController : ControllerBase
     }
 }
 
-public record PatientHealthRecordSummary(
-    Guid PatientId,
-    int Conditions,
-    int Medications,
-    int Allergies,
-    int Immunizations,
-    int Procedures,
-    int Observations,
-    DateTimeOffset LastUpdated,
-    string DataOrigin,
-    bool IsCrossBorderAccessible);
+public record PatientHealthRecordSummary
+{
+    public Guid PatientId { get; init; }
+    public int Conditions { get; init; }
+    public int Medications { get; init; }
+    public int Allergies { get; init; }
+    public int Immunizations { get; init; }
+    public int Procedures { get; init; }
+    public int Observations { get; init; }
+    public DateTimeOffset LastUpdated { get; init; }
+    public string DataOrigin { get; init; }
+    public bool IsCrossBorderAccessible { get; init; }
+}
 
-public record ConditionSummary(
-    Guid Id,
-    string Code,
-    string Display,
-    string ClinicalStatus,
-    string VerificationStatus,
-    DateTimeOffset OnsetDateTime);
+public record ConditionSummary
+{
+    public Guid Id { get; init; }
+    public string Code { get; init; }
+    public string Display { get; init; }
+    public string ClinicalStatus { get; init; }
+    public string VerificationStatus { get; init; }
+    public DateTimeOffset OnsetDateTime { get; init; }
+}
 
-public record MedicationSummary(
-    Guid Id,
-    string Code,
-    string Display,
-    string Dosage,
-    string Frequency,
-    DateTimeOffset StartDate);
+public record MedicationSummary
+{
+    public Guid Id { get; init; }
+    public string Code { get; init; }
+    public string Display { get; init; }
+    public string Dosage { get; init; }
+    public string Frequency { get; init; }
+    public DateTimeOffset StartDate { get; init; }
+}
 
-public record AllergySummary(
-    Guid Id,
-    string Code,
-    string Display,
-    string ClinicalStatus,
-    string Criticality);
+public record AllergySummary
+{
+    public Guid Id { get; init; }
+    public string Code { get; init; }
+    public string Display { get; init; }
+    public string ClinicalStatus { get; init; }
+    public string Criticality { get; init; }
+}
 
-public record ImmunizationSummary(
-    Guid Id,
-    string VaccineCode,
-    string Display,
-    DateTimeOffset AdministrationDate,
-    string? LotNumber);
+public record ImmunizationSummary
+{
+    public Guid Id { get; init; }
+    public string VaccineCode { get; init; }
+    public string Display { get; init; }
+    public DateTimeOffset AdministrationDate { get; init; }
+    public string? LotNumber { get; init; }
+}
 
-public record ObservationSummary(
-    Guid Id,
-    string Code,
-    string Display,
-    string Value,
-    string Unit,
-    DateTimeOffset EffectiveDateTime);
+public record ObservationSummary
+{
+    public Guid Id { get; init; }
+    public string Code { get; init; }
+    public string Display { get; init; }
+    public string Value { get; init; }
+    public string Unit { get; init; }
+    public DateTimeOffset EffectiveDateTime { get; init; }
+}
 
 public record ConsentRequest(bool IsAllowed);

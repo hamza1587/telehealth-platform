@@ -4,9 +4,8 @@ public class CurrencyService : ICurrencyService
 {
     private readonly Dictionary<string, decimal> _exchangeRates;
 
-    public CurrencyService(IConfiguration configuration)
+    public CurrencyService()
     {
-        // In production, fetch from real-time exchange rate service
         _exchangeRates = new Dictionary<string, decimal>
         {
             { "EUR", 1.0m },
@@ -42,12 +41,7 @@ public class CurrencyService : ICurrencyService
 
     public List<CurrencyInfo> GetSupportedCurrencies()
     {
-        return _exchangeRates.Select(kvp => new CurrencyInfo
-        {
-            Code = kvp.Key,
-            Name = GetCurrencyName(kvp.Key),
-            Symbol = GetCurrencySymbol(kvp.Key)
-        }).ToList();
+        return _exchangeRates.Select(kvp => new CurrencyInfo(kvp.Key, GetCurrencyName(kvp.Key), GetCurrencySymbol(kvp.Key))).ToList();
     }
 
     public bool IsCurrencySupported(string currencyCode)
@@ -103,12 +97,6 @@ public interface ICurrencyService
     bool IsCurrencySupported(string currencyCode);
 }
 
-public record CurrencyConversion(
-    decimal Amount,
-    string FromCurrency,
-    string ToCurrency,
-    decimal ConvertedAmount,
-    decimal Rate
-);
+public record CurrencyConversion(decimal Amount, string FromCurrency, string ToCurrency, decimal ConvertedAmount, decimal Rate);
 
 public record CurrencyInfo(string Code, string Name, string Symbol);

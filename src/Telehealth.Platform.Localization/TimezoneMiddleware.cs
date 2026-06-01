@@ -1,32 +1,36 @@
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace Telehealth.Platform.Localization;
 
 public class TimezoneMiddleware
 {
-    private readonly RequestDelegate _next;
+    private readonly Func<IDictionary<string, object>, Task> _next;
     private readonly ILogger<TimezoneMiddleware> _logger;
 
-    public TimezoneMiddleware(RequestDelegate next, ILogger<TimezoneMiddleware> logger)
+    public TimezoneMiddleware(Func<IDictionary<string, object>, Task> next, ILogger<TimezoneMiddleware> logger)
     {
         _next = next;
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(IDictionary<string, object> context)
     {
-        var timezoneHeader = context.Request.Headers["X-Timezone"].FirstOrDefault();
-        
-        if (!string.IsNullOrEmpty(timezoneHeader))
+        if (context.TryGetValue("Headers", out var headersObj) && headersObj is IDictionary<string, string> headers)
         {
-            try
+            var timezoneHeader = headers.ContainsKey("X-Timezone") ? headers["X-Timezone"].ToString() : string.Empty;
+
+            if (!string.IsNullOrEmpty(timezoneHeader))
             {
-                var timezoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timezoneHeader);
-                context.Items["Timezone"] = timezoneInfo;
-            }
-            catch (TimeZoneNotFoundException)
-            {
-                _logger.LogWarning("Invalid timezone provided: {Timezone}", timezoneHeader);
+                try
+                {
+                    var timezoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timezoneHeader);
+                    context["Timezone"] = timezoneInfo;
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                    _logger.LogWarning("Invalid timezone provided: {Timezone}", timezoneHeader);
+                }
             }
         }
 
@@ -36,12 +40,12 @@ public class TimezoneMiddleware
 
 public static class TimezoneExtensions
 {
-    public static TimeZoneInfo? GetRequestTimezone(this HttpContext context)
+    public static TimeZoneInfo? GetRequestTimezone(this IDictionary<string, object> context)
     {
-        return context.Items["Timezone"] as TimeZoneInfo;
+        return context["Timezone"] as TimeZoneInfo;
     }
 
-    public static DateTimeOffset ToRequestTimezone(this DateTimeOffset dateTime, HttpContext context)
+    public static DateTimeOffset ToRequestTimezone(this DateTimeOffset dateTime, IDictionary<string, object> context)
     {
         var timezone = context.GetRequestTimezone();
         if (timezone == null)

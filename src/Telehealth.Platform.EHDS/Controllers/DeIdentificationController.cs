@@ -96,10 +96,12 @@ public record DeIdentifyRequest(int KAnonymityLevel = 5, double Epsilon = 1.0);
 public record ValidatePrivacyRequest(List<Dictionary<string, object>> Data, int KAnonymityLevel, double Epsilon);
 public record CalculateKAnonymityRequest(List<Dictionary<string, object>> Data);
 public record PrivacyMetricsRequest(int KAnonymityLevel = 5, double Epsilon = 1.0);
-public record PrivacyMetricsResponse(
-    int CurrentKAnonymity,
-    int RequestedKAnonymity,
-    double Epsilon,
-    bool SatisfiesPrivacyRequirements,
-    int RecordCount,
-    List<string> QuirkIdentifiers);
+public record PrivacyMetricsResponse
+{
+    public int CurrentKAnonymity { get; init; }
+    public int RequestedKAnonymity { get; init; }
+    public double Epsilon { get; init; }
+    public bool SatisfiesPrivacyRequirements { get; init; }
+    public int RecordCount { get; init; }
+    public List<string> QuirkIdentifiers { get; init; }
+}

@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Telehealth.Platform.Domain\Telehealth.Platform.Domain.csproj" />
+    <ProjectReference Include="..\Telehealth.Platform.Localization\Telehealth.Platform.Localization.csproj" />
   </ItemGroup>
 
 </Project>

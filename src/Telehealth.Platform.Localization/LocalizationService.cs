@@ -1,16 +1,9 @@
+using System.Text.Json;
+
 namespace Telehealth.Platform.Localization;
 
 public class LocalizationService : ILocalizationService
 {
-    private readonly IConfiguration _configuration;
-
-    public LocalizationService(IConfiguration configuration)
-
-    public LocalizationService(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
-
     public string Translate(string key, string language = "en")
     {
         return Translate(key, null, language);
@@ -18,13 +11,7 @@ public class LocalizationService : ILocalizationService
 
     public string Translate(string key, Dictionary<string, string>? parameters, string language = "en")
     {
-        // In production, this would query a translation database or JSON resource file
-        var keyParts = key.Split('.');
-        var section = keyParts.Length > 0 ? keyParts[0] : "general";
-        
-        // Default translations for demonstration
         var translations = GetDefaultTranslations(language);
-        
         var value = translations.GetValueOrDefault(key) ?? key;
 
         if (parameters != null)
@@ -38,33 +25,31 @@ public class LocalizationService : ILocalizationService
         return value;
     }
 
-    public async Task<Dictionary<string, string>> GetLanguageAsync(string language)
+    public Task<Dictionary<string, string>> GetLanguageAsync(string language)
     {
-        var translations = await LoadTranslationsFromFile(language);
-        return translations ?? GetDefaultTranslations(language);
+        return Task.FromResult(GetDefaultTranslations(language));
     }
 
-    public async Task<List<string>> GetSupportedLanguagesAsync()
+    public Task<List<string>> GetSupportedLanguagesAsync()
     {
-        return await Task.FromResult(new List<string>
+        return Task.FromResult(new List<string>
         {
-            "en", "de", "fr", "es", "it", "nl", 
+            "en", "de", "fr", "es", "it", "nl",
             "pl", "pt", "sv", "da", "no", "fi",
             "el", "cs", "hu", "ro", "bg", "hr",
             "sl", "sk"
         });
     }
 
-    public async Task<bool> IsLanguageSupportedAsync(string language)
+    public Task<bool> IsLanguageSupportedAsync(string language)
     {
-        var supported = await GetSupportedLanguagesAsync();
-        return supported.Contains(language.ToLowerInvariant());
+        var supported = GetSupportedLanguagesAsync().Result;
+        return Task.FromResult(supported.Contains(language.ToLowerInvariant()));
     }
 
-    public async Task AddTranslationAsync(string key, string language, string value)
+    public Task AddTranslationAsync(string key, string language, string value)
     {
-        // In production, save to database or file
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     private Dictionary<string, string> GetDefaultTranslations(string language)
@@ -111,19 +96,6 @@ public class LocalizationService : ILocalizationService
         };
     }
 
-    private async Task<Dictionary<string, string>?> LoadTranslationsFromFile(string language)
-    {
-        var translationPath = _configuration[$"Localization:TranslationPath"] ?? 
-                            $"./translations/{language}.json";
-        
-        if (!File.Exists(translationPath))
-            return null;
-
-        var json = await File.ReadAllTextAsync(translationPath);
-        return JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-    }
-
-    // Language-specific translations (partial - full implementation would have all keys)
     private Dictionary<string, string> GetGermanTranslations() => new()
     {
         { "app.title", "Telemedizin-Plattform" },

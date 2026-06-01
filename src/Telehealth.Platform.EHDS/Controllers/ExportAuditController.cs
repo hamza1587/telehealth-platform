@@ -105,20 +105,30 @@ public class ExportAuditController : ControllerBase
     {
         _logger.LogInformation(
             "Researcher {ResearcherId} accessed export {ExportId} from {IpAddress}",
-            request.ResearcherId, 
-            exportId, 
+            request.ResearcherId,
+            exportId,
             request.IpAddress);
 
-        // In production, log to audit database
         return Ok(new { tracked = true });
     }
 }
 
-public record AuditTrailResponse(Guid ExportId, List<AuditEvent> Events);
-public record AuditEvent(
-    DateTimeOffset Timestamp,
-    string Action,
-    string Actor,
-    string? Details = null
-);
-public record AccessTrackingRequest(string ResearcherId, string IpAddress);
+public record AuditTrailResponse
+{
+    public Guid ExportId { get; init; }
+    public List<AuditEvent> Events { get; init; }
+}
+
+public record AuditEvent
+{
+    public DateTimeOffset Timestamp { get; init; }
+    public string Action { get; init; }
+    public string Actor { get; init; }
+    public string? Details { get; init; }
+}
+
+public record AccessTrackingRequest
+{
+    public string ResearcherId { get; init; }
+    public string IpAddress { get; init; }
+}

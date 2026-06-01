@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Telehealth.Platform.EHDS.Services;
+using Telehealth.Platform.Localization;
 using Telehealth.Platform.EHDS;
 
 var builder = WebApplication.CreateBuilder(args);

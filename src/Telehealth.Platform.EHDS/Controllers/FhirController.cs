@@ -37,13 +37,13 @@ public class FhirController : ControllerBase
                 Name = "Telehealth Platform EHDS Service",
                 Version = "1.0.0"
             },
-            FhirVersion = "4.0.1",
+            FhirVersion = FHIRVersion.N4_0_1,
             Format = new List<string> { "application/fhir+json", "application/fhir+xml" },
             Rest = new List<CapabilityStatement.RestComponent>
             {
                 new CapabilityStatement.RestComponent
                 {
-                    Mode = RestfulCapabilityMode.Server,
+                    Mode = CapabilityStatement.RestfulCapabilityMode.Server,
                     Resource = new List<CapabilityStatement.ResourceComponent>
                     {
                         new CapabilityStatement.ResourceComponent
@@ -302,7 +302,7 @@ public class FhirController : ControllerBase
                             {
                                 Repeat = new Timing.RepeatComponent
                                 {
-                                    Frequency = medication.Frequency
+                                    Frequency = int.Parse(medication.Frequency.Split(' ')[0])
                                 }
                             }
                         }

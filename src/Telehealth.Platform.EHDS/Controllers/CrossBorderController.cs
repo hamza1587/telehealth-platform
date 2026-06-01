@@ -23,7 +23,6 @@ public class CrossBorderController : ControllerBase
     {
         try
         {
-            // Verify patient record exists and is cross-border accessible
             var record = await _patientRecordService.GetRecordByPatientIdAsync(request.PatientId);
             if (record == null)
                 return NotFound($"Patient record not found for ID: {request.PatientId}");
@@ -31,10 +30,8 @@ public class CrossBorderController : ControllerBase
             if (!record.IsCrossBorderAccessible)
                 return Forbid("Patient record not marked for cross-border access");
 
-            // Export to FHIR format for interoperability
             var fhirData = await _patientRecordService.ExportToFhirAsync(record.Id);
-            
-            // If for research purposes, apply de-identification
+
             if (request.Purpose == "research")
             {
                 var records = new List<Telehealth.Platform.Domain.Entities.PatientHealthRecord> { record };
@@ -42,23 +39,23 @@ public class CrossBorderController : ControllerBase
                     records,
                     request.KAnonymityLevel,
                     request.Epsilon);
-                
+
                 return Ok(new CrossBorderExchangeResponse
                 {
+                    ExchangeId = Guid.NewGuid(),
                     PatientId = request.PatientId,
                     RecipientCountry = request.RecipientCountry,
-                    FhirData = fhirData,
                     DeidentifiedData = deidentified,
-                    ExchangeId = Guid.NewGuid()
+                    FhirData = fhirData
                 });
             }
 
             return Ok(new CrossBorderExchangeResponse
             {
+                ExchangeId = Guid.NewGuid(),
                 PatientId = request.PatientId,
                 RecipientCountry = request.RecipientCountry,
-                FhirData = fhirData,
-                ExchangeId = Guid.NewGuid()
+                FhirData = fhirData
             });
         }
         catch (Exception ex)
@@ -103,7 +100,7 @@ public class CrossBorderController : ControllerBase
             return NotFound($"Patient record not found for ID: {request.PatientId}");
 
         var hasAccess = record.IsCrossBorderAccessible;
-        var canExchange = hasAccess && 
+        var canExchange = hasAccess &&
             Enum.TryParse<CountryCode>(request.RecipientCountry, out _) &&
             !string.IsNullOrEmpty(request.RecipientCountry);
 
@@ -118,14 +115,21 @@ public record CrossBorderExchangeRequest(
     int KAnonymityLevel = 5,
     double Epsilon = 1.0);
 
-public record CrossBorderExchangeResponse(
-    Guid PatientId,
-    string RecipientCountry,
-    string FhirData,
-    List<Dictionary<string, object>>? DeidentifiedData,
-    Guid ExchangeId);
+public record CrossBorderExchangeResponse
+{
+    public string FhirData { get; init; }
+    public List<Dictionary<string, object>>? DeidentifiedData { get; init; }
+    public Guid ExchangeId { get; init; }
+    public Guid PatientId { get; init; }
+    public string RecipientCountry { get; init; }
+}
 
-public record SupportedCountry(string Code, string Name, bool IsEhdsCompliant);
+public record SupportedCountry
+{
+    public bool IsEhdsCompliant { get; init; }
+    public string Code { get; init; }
+    public string Name { get; init; }
+}
 
 public record ValidateAccessRequest(Guid PatientId, string RecipientCountry);
 

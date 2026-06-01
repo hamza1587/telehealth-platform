@@ -58,7 +58,7 @@ public class PatientHealthRecordController : ControllerBase
     }
 
     [HttpPost("{id}/medications")]
-    public async Task<ActionResult<PatientHealthRecord>> AddMedication(Guid id, [FromBody] Medication medication)
+    public async Task<ActionResult<PatientHealthRecord>> AddMedication(Guid id, [FromBody] Telehealth.Platform.Domain.Entities.Medication medication)
     {
         var record = await _service.AddMedicationAsync(id, medication);
         return Ok(record);

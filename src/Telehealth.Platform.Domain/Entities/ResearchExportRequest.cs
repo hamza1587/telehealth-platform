@@ -16,6 +16,7 @@ public class ResearchExportRequest
     public string? ExportUrl { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
     public List<string> AuditTrail { get; private set; }
+    public string? RejectionReason { get; private set; } = null;
 
     public ResearchExportRequest(
         Guid requesterId,
