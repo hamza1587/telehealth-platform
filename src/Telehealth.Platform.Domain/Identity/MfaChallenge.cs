@@ -9,12 +9,12 @@ public sealed class MfaChallenge : Entity<Guid>
         Guid userId,
         MfaMethodType challengeType,
         string challengeData,
-        TimeSpan expirationTime) : base(id)
+        DateTimeOffset expiresAt) : base(id)
     {
         UserId = userId;
         ChallengeType = challengeType;
         ChallengeData = challengeData;
-        ExpiresAt = DateTimeOffset.UtcNow.Add(expirationTime);
+        ExpiresAt = expiresAt;
         CreatedAt = DateTimeOffset.UtcNow;
         VerificationAttempts = 0;
         IsVerified = false;

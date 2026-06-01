@@ -23,7 +23,7 @@ public class UserSession : Entity<Guid>
         string deviceId,
         string ipAddress,
         string userAgent,
-        TimeSpan ttl) : base(id)
+        TimeSpan expiresIn) : base(id)
     {
         UserId = userId;
         SessionId = sessionId;
@@ -32,7 +32,7 @@ public class UserSession : Entity<Guid>
         UserAgent = userAgent;
         StartedAt = DateTimeOffset.UtcNow;
         LastActivityAt = DateTimeOffset.UtcNow;
-        ExpiresAt = DateTimeOffset.UtcNow.Add(ttl);
+        ExpiresAt = DateTimeOffset.UtcNow.Add(expiresIn);
     }
 
     public void UpdateActivity()
@@ -56,9 +56,9 @@ public class UserSession : Entity<Guid>
         string deviceId,
         string ipAddress,
         string userAgent,
-        TimeSpan ttl)
+        TimeSpan expiresIn)
     {
-        return new UserSession(Guid.NewGuid(), userId, sessionId, deviceId, ipAddress, userAgent, ttl);
+        return new UserSession(Guid.NewGuid(), userId, sessionId, deviceId, ipAddress, userAgent, expiresIn);
     }
 
     public PlatformUser? User { get; private set; }
