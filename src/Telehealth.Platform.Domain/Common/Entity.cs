@@ -8,5 +8,9 @@ public abstract class Entity<TId>
         Id = id;
     }
 
-    public TId Id { get; }
+    protected Entity()
+    {
+    }
+
+    public TId Id { get; private set; } = default!;
 }
