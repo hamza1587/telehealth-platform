@@ -1,16 +1,13 @@
-using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
-
 namespace Telehealth.Platform.Localization;
 
 public class LocalizationService : ILocalizationService
 {
-    private readonly EhdsDbContext _context;
     private readonly IConfiguration _configuration;
 
-    public LocalizationService(EhdsDbContext context, IConfiguration configuration)
+    public LocalizationService(IConfiguration configuration)
+
+    public LocalizationService(IConfiguration configuration)
     {
-        _context = context;
         _configuration = configuration;
     }
 

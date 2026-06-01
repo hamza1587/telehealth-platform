@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Telehealth.Platform.Domain.Entities;
 
 namespace Telehealth.Platform.Localization;
 
