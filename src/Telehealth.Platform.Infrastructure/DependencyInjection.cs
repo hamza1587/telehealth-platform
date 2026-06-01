@@ -55,7 +55,11 @@ public static class DependencyInjection
         services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(connectionString));
         services.AddSingleton<IClock, SystemClock>();
 
-        services.AddSingleton<DatabaseHealthCheck>();
+        // Register distributed cache for caching service
+        services.AddDistributedMemoryCache();
+
+        // Register health check as scoped (not singleton)
+        services.AddScoped<DatabaseHealthCheck>();
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
 
         // Register Redis if enabled
@@ -203,7 +207,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationService, NotificationService>();
 
         // Register Caching Services
-        services.AddSingleton<ICachingService, CachingService>();
+        services.AddScoped<ICachingService, CachingService>();
 
         // Configure Session Options
         services.Configure<SessionOptions>(options =>

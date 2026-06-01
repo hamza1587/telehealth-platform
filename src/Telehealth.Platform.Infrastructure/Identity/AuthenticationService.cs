@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Telehealth.Platform.Application.Abstractions.ClinicalRecords;
 using Telehealth.Platform.Application.Abstractions.Identity;
 using Telehealth.Platform.Domain.Identity;
@@ -18,7 +19,7 @@ public sealed class AuthenticationService : IAuthenticationService
     private readonly IMfaService _mfaService;
     private readonly ILoginAttemptLogger _loginAttemptLogger;
     private readonly IClinicalRecordGateway _clinicalRecordGateway;
-    private readonly JwtSettings _jwtSettings;
+    private readonly IOptions<JwtSettings> _jwtOptions;
     private readonly ILogger<AuthenticationService> _logger;
 
     public AuthenticationService(
@@ -28,7 +29,7 @@ public sealed class AuthenticationService : IAuthenticationService
         IMfaService mfaService,
         ILoginAttemptLogger loginAttemptLogger,
         IClinicalRecordGateway clinicalRecordGateway,
-        JwtSettings jwtSettings,
+        IOptions<JwtSettings> jwtOptions,
         ILogger<AuthenticationService> logger)
     {
         _dbContext = dbContext;
@@ -37,9 +38,11 @@ public sealed class AuthenticationService : IAuthenticationService
         _mfaService = mfaService;
         _loginAttemptLogger = loginAttemptLogger;
         _clinicalRecordGateway = clinicalRecordGateway;
-        _jwtSettings = jwtSettings;
+        _jwtOptions = jwtOptions;
         _logger = logger;
     }
+
+    private JwtSettings JwtSettings => _jwtOptions.Value;
 
     public async Task<AuthenticationResult> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
     {
@@ -337,7 +340,7 @@ public sealed class AuthenticationService : IAuthenticationService
             deviceName,
             ipAddress,
             userAgent,
-            DateTimeOffset.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays));
+            DateTimeOffset.UtcNow.AddDays(JwtSettings.RefreshTokenExpirationDays));
 
         _dbContext.RefreshTokens.Add(refreshTokenEntity);
 
@@ -432,7 +435,7 @@ public sealed class AuthenticationService : IAuthenticationService
             storedToken.DeviceName,
             request.IpAddress ?? storedToken.IpAddress,
             storedToken.UserAgent,
-            DateTimeOffset.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays));
+            DateTimeOffset.UtcNow.AddDays(JwtSettings.RefreshTokenExpirationDays));
 
         storedToken.ReplaceWith(newTokenEntity.Id.ToString());
         _dbContext.RefreshTokens.Add(newTokenEntity);
