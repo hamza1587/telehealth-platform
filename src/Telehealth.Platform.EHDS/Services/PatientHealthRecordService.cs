@@ -1,3 +1,5 @@
+using Hl7.Fhir.Model;
+using Hl7.Fhir.Serialization;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Telehealth.Platform.Domain.Entities;
@@ -37,7 +39,7 @@ public class PatientHealthRecordService : IPatientHealthRecordService
         return await _context.PatientHealthRecords.ToListAsync();
     }
 
-    public async Task<PatientHealthRecord> AddConditionAsync(Guid recordId, Condition condition)
+    public async Task<PatientHealthRecord> AddConditionAsync(Guid recordId, Telehealth.Platform.Domain.Entities.Condition condition)
     {
         var record = await _context.PatientHealthRecords.FindAsync(recordId);
         if (record == null)
@@ -48,7 +50,7 @@ public class PatientHealthRecordService : IPatientHealthRecordService
         return record;
     }
 
-    public async Task<PatientHealthRecord> AddMedicationAsync(Guid recordId, Medication medication)
+    public async Task<PatientHealthRecord> AddMedicationAsync(Guid recordId, Telehealth.Platform.Domain.Entities.Medication medication)
     {
         var record = await _context.PatientHealthRecords.FindAsync(recordId);
         if (record == null)
@@ -76,135 +78,387 @@ public class PatientHealthRecordService : IPatientHealthRecordService
         if (record == null)
             throw new ArgumentException("Record not found", nameof(recordId));
 
-        // Convert to FHIR R4 format
-        var fhirResource = new
+        // Convert to FHIR R4 format using official FHIR library
+        var bundle = new Bundle
         {
-            resourceType = "Bundle",
-            type = "collection",
-            entry = new List<object>
-            {
-                new
-                {
-                    resource = new
-                    {
-                        resourceType = "Patient",
-                        id = record.PatientId.ToString()
-                    }
-                }
-            }
+            Type = Bundle.BundleType.Collection,
+            Entry = new List<Bundle.EntryComponent>()
         };
+
+        // Add patient resource
+        var patient = new Patient
+        {
+            Id = record.PatientId.ToString(),
+            Active = true
+        };
+        bundle.Entry.Add(new Bundle.EntryComponent
+        {
+            Resource = patient
+        });
 
         // Add conditions
         foreach (var condition in record.Conditions)
         {
-            fhirResource.entry.Add(new
+            var fhirCondition = new Hl7.Fhir.Model.Condition
             {
-                resource = new
+                Id = condition.Id.ToString(),
+                ClinicalStatus = new CodeableConcept
                 {
-                    resourceType = "Condition",
-                    id = condition.Id.ToString(),
-                    code = new
+                    Coding = new List<Coding>
                     {
-                        coding = new[]
+                        new Coding
                         {
-                            new
-                            {
-                                system = condition.System,
-                                code = condition.Code,
-                                display = condition.Display
-                            }
+                            System = "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                            Code = condition.ClinicalStatus
                         }
-                    },
-                    clinicalStatus = new
+                    }
+                },
+                VerificationStatus = new CodeableConcept
+                {
+                    Coding = new List<Coding>
                     {
-                        coding = new[]
+                        new Coding
                         {
-                            new
-                            {
-                                system = "http://terminology.hl7.org/CodeSystem/condition-clinical",
-                                code = condition.ClinicalStatus
-                            }
+                            System = "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                            Code = condition.VerificationStatus
                         }
-                    },
-                    verificationStatus = new
+                    }
+                },
+                Code = new CodeableConcept
+                {
+                    Coding = new List<Coding>
                     {
-                        coding = new[]
+                        new Coding
                         {
-                            new
-                            {
-                                system = "http://terminology.hl7.org/CodeSystem/condition-ver-status",
-                                code = condition.VerificationStatus
-                            }
+                            System = condition.System,
+                            Code = condition.Code,
+                            Display = condition.Display
                         }
-                    },
-                    onsetDateTime = condition.OnsetDateTime.ToString("o")
-                }
+                    }
+                },
+                Onset = new FhirDateTime(condition.OnsetDateTime)
+            };
+            bundle.Entry.Add(new Bundle.EntryComponent
+            {
+                Resource = fhirCondition
             });
         }
 
         // Add medications
         foreach (var medication in record.Medications)
         {
-            fhirResource.entry.Add(new
+            var medRequest = new MedicationRequest
             {
-                resource = new
+                Id = medication.Id.ToString(),
+                Medication = new CodeableConcept
                 {
-                    resourceType = "MedicationRequest",
-                    id = medication.Id.ToString(),
-                    medicationCodeableConcept = new
+                    Coding = new List<Coding>
                     {
-                        coding = new[]
+                        new Coding
                         {
-                            new
+                            System = medication.System,
+                            Code = medication.Code,
+                            Display = medication.Display
+                        }
+                    }
+                },
+                DosageInstruction = new List<Dosage>
+                {
+                    new Dosage
+                    {
+                        Text = $"{medication.Dosage} {medication.Frequency}",
+                        Timing = new Timing
+                        {
+                            Repeat = new Timing.RepeatComponent
                             {
-                                system = medication.System,
-                                code = medication.Code,
-                                display = medication.Display
+                                Frequency = medication.Frequency
                             }
                         }
-                    },
-                    dosageInstruction = new[]
-                    {
-                        new
-                        {
-                            text = $"{medication.Dosage} {medication.Frequency}",
-                            timing = new
-                            {
-                                repeat = new
-                                {
-                                    frequency = medication.Frequency
-                                }
-                            }
-                        }
-                    },
-                    authoredOn = medication.StartDate.ToString("o")
-                }
+                    }
+                },
+                AuthoredOn = medication.StartDate.ToString("o")
+            };
+            bundle.Entry.Add(new Bundle.EntryComponent
+            {
+                Resource = medRequest
             });
         }
 
-        return JsonSerializer.Serialize(fhirResource, new JsonSerializerOptions
+        // Add allergies
+        foreach (var allergy in record.Allergies)
         {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+            var allergyIntolerance = new AllergyIntolerance
+            {
+                Id = allergy.Id.ToString(),
+                ClinicalStatus = new CodeableConcept
+                {
+                    Coding = new List<Coding>
+                    {
+                        new Coding
+                        {
+                            System = "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+                            Code = allergy.ClinicalStatus
+                        }
+                    }
+                },
+                Criticality = (AllergyIntolerance.AllergyIntoleranceCriticality?)Enum.Parse(
+                    typeof(AllergyIntolerance.AllergyIntoleranceCriticality), 
+                    allergy.Criticality, 
+                    true),
+                Code = new CodeableConcept
+                {
+                    Coding = new List<Coding>
+                    {
+                        new Coding
+                        {
+                            System = allergy.System,
+                            Code = allergy.Code,
+                            Display = allergy.Display
+                        }
+                    }
+                }
+            };
+            bundle.Entry.Add(new Bundle.EntryComponent
+            {
+                Resource = allergyIntolerance
+            });
+        }
+
+        // Add immunizations
+        foreach (var immunization in record.Immunizations)
+        {
+            var fhirImmunization = new Immunization
+            {
+                Id = immunization.Id.ToString(),
+                Status = "completed",
+                VaccineCode = new CodeableConcept
+                {
+                    Coding = new List<Coding>
+                    {
+                        new Coding
+                        {
+                            System = immunization.System,
+                            Code = immunization.VaccineCode,
+                            Display = immunization.Display
+                        }
+                    }
+                },
+                Occurrence = new FhirDateTime(immunization.AdministrationDate),
+                LotNumber = immunization.LotNumber
+            };
+            bundle.Entry.Add(new Bundle.EntryComponent
+            {
+                Resource = fhirImmunization
+            });
+        }
+
+        // Add procedures
+        foreach (var procedure in record.Procedures)
+        {
+            var fhirProcedure = new Procedure
+            {
+                Id = procedure.Id.ToString(),
+                Status = (EventStatus?)Enum.Parse(typeof(EventStatus), procedure.Status ?? "completed", true),
+                Code = new CodeableConcept
+                {
+                    Coding = new List<Coding>
+                    {
+                        new Coding
+                        {
+                            System = procedure.System,
+                            Code = procedure.Code,
+                            Display = procedure.Display
+                        }
+                    }
+                },
+                Performed = new FhirDateTime(procedure.PerformedDate)
+            };
+            bundle.Entry.Add(new Bundle.EntryComponent
+            {
+                Resource = fhirProcedure
+            });
+        }
+
+        // Add observations
+        foreach (var observation in record.Observations)
+        {
+            var fhirObservation = new Observation
+            {
+                Id = observation.Id.ToString(),
+                Status = ObservationStatus.Final,
+                Code = new CodeableConcept
+                {
+                    Coding = new List<Coding>
+                    {
+                        new Coding
+                        {
+                            System = observation.System,
+                            Code = observation.Code,
+                            Display = observation.Display
+                        }
+                    }
+                },
+                Value = new Quantity
+                {
+                    Value = decimal.Parse(observation.Value),
+                    Unit = observation.Unit
+                },
+                Effective = new FhirDateTime(observation.EffectiveDateTime)
+            };
+            bundle.Entry.Add(new Bundle.EntryComponent
+            {
+                Resource = fhirObservation
+            });
+        }
+
+        // Serialize to JSON
+        var serializer = new FhirJsonSerializer();
+        return serializer.SerializeToString(bundle);
     }
 
     public async Task<string> ImportFromFhirAsync(string fhirJson)
     {
-        // Parse FHIR JSON and convert to PatientHealthRecord
-        // This is a simplified implementation
-        var fhirData = JsonSerializer.Deserialize<JsonElement>(fhirJson);
+        // Parse FHIR JSON using official FHIR library and convert to PatientHealthRecord
+        var parser = new FhirJsonParser();
+        var bundle = parser.Parse<Bundle>(fhirJson);
         
-        if (fhirData.ValueKind != JsonValueKind.Object)
-            throw new ArgumentException("Invalid FHIR JSON");
+        if (bundle == null || bundle.Entry == null)
+            throw new ArgumentException("Invalid FHIR bundle");
 
         // Extract patient ID
-        var patientId = Guid.NewGuid(); // In production, extract from FHIR resource
+        var patientResource = bundle.Entry
+            .FirstOrDefault(e => e.Resource is Patient)?.Resource as Patient;
+        
+        var patientId = patientResource?.Id != null ? 
+            Guid.Parse(patientResource.Id) : Guid.NewGuid();
         
         var record = new PatientHealthRecord(patientId, "FHIR Import", false);
         
-        // Parse conditions, medications, etc. from FHIR
-        // This would be more comprehensive in production
+        // Parse conditions
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is Condition))
+        {
+            var condition = entry.Resource as Condition;
+            if (condition?.Code?.Coding?.FirstOrDefault() != null)
+            {
+                var coding = condition.Code.Coding.First();
+                record.AddCondition(new Condition
+                {
+                    Id = condition.Id != null ? Guid.Parse(condition.Id) : Guid.NewGuid(),
+                    Code = coding.Code,
+                    System = coding.System,
+                    Display = coding.Display,
+                    ClinicalStatus = condition.ClinicalStatus?.Coding?.FirstOrDefault()?.Code ?? "active",
+                    VerificationStatus = condition.VerificationStatus?.Coding?.FirstOrDefault()?.Code ?? "confirmed",
+                    OnsetDateTime = condition.Onset is FhirDateTime dt ? dt.ToDateTimeOffset() : DateTimeOffset.UtcNow
+                });
+            }
+        }
+
+        // Parse medications
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is MedicationRequest))
+        {
+            var medRequest = entry.Resource as MedicationRequest;
+            if (medRequest?.Medication is CodeableConcept medConcept && 
+                medConcept.Coding?.FirstOrDefault() != null)
+            {
+                var coding = medConcept.Coding.First();
+                var dosage = medRequest.DosageInstruction?.FirstOrDefault();
+                record.AddMedication(new Medication
+                {
+                    Id = medRequest.Id != null ? Guid.Parse(medRequest.Id) : Guid.NewGuid(),
+                    Code = coding.Code,
+                    System = coding.System,
+                    Display = coding.Display,
+                    Dosage = dosage?.Text ?? "As prescribed",
+                    Frequency = dosage?.Timing?.Repeat?.Frequency?.ToString() ?? "1",
+                    StartDate = DateTimeOffset.Parse(medRequest.AuthoredOn ?? DateTime.UtcNow.ToString("o"))
+                });
+            }
+        }
+
+        // Parse allergies
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is AllergyIntolerance))
+        {
+            var allergy = entry.Resource as AllergyIntolerance;
+            if (allergy?.Code?.Coding?.FirstOrDefault() != null)
+            {
+                var coding = allergy.Code.Coding.First();
+                record.Allergies.Add(new AllergyIntolerance
+                {
+                    Id = allergy.Id != null ? Guid.Parse(allergy.Id) : Guid.NewGuid(),
+                    Code = coding.Code,
+                    System = coding.System,
+                    Display = coding.Display,
+                    ClinicalStatus = allergy.ClinicalStatus?.Coding?.FirstOrDefault()?.Code ?? "active",
+                    Criticality = allergy.Criticality?.ToString() ?? "low",
+                    Reaction = allergy.Reaction
+                });
+            }
+        }
+
+        // Parse immunizations
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is Immunization))
+        {
+            var immunization = entry.Resource as Immunization;
+            if (immunization?.VaccineCode?.Coding?.FirstOrDefault() != null)
+            {
+                var coding = immunization.VaccineCode.Coding.First();
+                record.Immunizations.Add(new Immunization
+                {
+                    Id = immunization.Id != null ? Guid.Parse(immunization.Id) : Guid.NewGuid(),
+                    VaccineCode = coding.Code,
+                    System = coding.System,
+                    Display = coding.Display,
+                    AdministrationDate = immunization.Occurrence is FhirDateTime dt ? 
+                        dt.ToDateTimeOffset() : DateTimeOffset.UtcNow,
+                    LotNumber = immunization.LotNumber,
+                    Site = immunization.Site?.Coding?.FirstOrDefault()?.Display
+                });
+            }
+        }
+
+        // Parse procedures
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is Procedure))
+        {
+            var procedure = entry.Resource as Procedure;
+            if (procedure?.Code?.Coding?.FirstOrDefault() != null)
+            {
+                var coding = procedure.Code.Coding.First();
+                record.Procedures.Add(new Procedure
+                {
+                    Id = procedure.Id != null ? Guid.Parse(procedure.Id) : Guid.NewGuid(),
+                    Code = coding.Code,
+                    System = coding.System,
+                    Display = coding.Display,
+                    PerformedDate = procedure.Performed is FhirDateTime dt ? 
+                        dt.ToDateTimeOffset() : DateTimeOffset.UtcNow,
+                    Status = procedure.Status?.ToString() ?? "completed",
+                    Notes = procedure.Note?.FirstOrDefault()?.Text
+                });
+            }
+        }
+
+        // Parse observations
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is Observation))
+        {
+            var observation = entry.Resource as Observation;
+            if (observation?.Code?.Coding?.FirstOrDefault() != null)
+            {
+                var coding = observation.Code.Coding.First();
+                var value = observation.Value as Quantity;
+                record.Observations.Add(new Observation
+                {
+                    Id = observation.Id != null ? Guid.Parse(observation.Id) : Guid.NewGuid(),
+                    Code = coding.Code,
+                    System = coding.System,
+                    Display = coding.Display,
+                    Value = value?.Value?.ToString() ?? "0",
+                    Unit = value?.Unit ?? "",
+                    EffectiveDateTime = observation.Effective is FhirDateTime dt ? 
+                        dt.ToDateTimeOffset() : DateTimeOffset.UtcNow
+                });
+            }
+        }
         
         _context.PatientHealthRecords.Add(record);
         await _context.SaveChangesAsync();

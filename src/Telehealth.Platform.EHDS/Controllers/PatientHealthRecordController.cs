@@ -1,4 +1,7 @@
+using Hl7.Fhir.Model;
+using Hl7.Fhir.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using Telehealth.Platform.Domain.Entities;
 using Telehealth.Platform.EHDS.Services;
 
@@ -48,7 +51,7 @@ public class PatientHealthRecordController : ControllerBase
     }
 
     [HttpPost("{id}/conditions")]
-    public async Task<ActionResult<PatientHealthRecord>> AddCondition(Guid id, [FromBody] Condition condition)
+    public async Task<ActionResult<PatientHealthRecord>> AddCondition(Guid id, [FromBody] Telehealth.Platform.Domain.Entities.Condition condition)
     {
         var record = await _service.AddConditionAsync(id, condition);
         return Ok(record);
@@ -71,15 +74,37 @@ public class PatientHealthRecordController : ControllerBase
     [HttpGet("{id}/fhir")]
     public async Task<ActionResult<string>> ExportToFhir(Guid id)
     {
-        var fhirJson = await _service.ExportToFhirAsync(id);
-        return Content(fhirJson, "application/fhir+json");
+        try
+        {
+            var fhirJson = await _service.ExportToFhirAsync(id);
+            return Content(fhirJson, "application/fhir+json");
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to export record: {ex.Message}");
+        }
     }
 
     [HttpPost("import/fhir")]
     public async Task<ActionResult<string>> ImportFromFhir([FromBody] string fhirJson)
     {
-        var recordId = await _service.ImportFromFhirAsync(fhirJson);
-        return Ok(new { recordId });
+        try
+        {
+            var recordId = await _service.ImportFromFhirAsync(fhirJson);
+            return Ok(new { recordId });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest($"Invalid FHIR data: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to import FHIR data: {ex.Message}");
+        }
     }
 }
 
