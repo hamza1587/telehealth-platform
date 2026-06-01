@@ -39,7 +39,8 @@ public class UserSessionService : IUserSessionService
         TimeSpan ttl,
         CancellationToken cancellationToken = default)
     {
-        var session = UserSession.Create(userId, sessionId, deviceId, ipAddress, userAgent, ttl);
+        var expiresAt = (DateTimeOffset?)DateTimeOffset.UtcNow.Add(ttl);
+        var session = UserSession.Create(userId, sessionId, deviceId, ipAddress, userAgent, expiresAt);
         await _dbContext.UserSessions.AddAsync(session, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
         return session;

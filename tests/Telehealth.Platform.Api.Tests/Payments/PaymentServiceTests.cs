@@ -157,15 +157,12 @@ public class PaymentServiceTests
     {
         var paymentId = Guid.NewGuid();
         var patientAccountId = Guid.NewGuid();
-        var amount = new Money(1000L, "USD");
-
         var transaction = PaymentTransaction.Create(
             paymentId,
             patientAccountId,
             "Stripe",
             "txn_123",
-            1000L,
-            amount);
+            1000L);
 
         transaction.PaymentId.Should().Be(paymentId);
         transaction.PatientAccountId.Should().Be(patientAccountId);

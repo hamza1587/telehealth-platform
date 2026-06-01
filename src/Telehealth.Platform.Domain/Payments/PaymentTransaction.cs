@@ -11,7 +11,6 @@ public sealed class PaymentTransaction : Entity<Guid>
         string provider,
         string providerTransactionId,
         long amountMinor,
-        Money amount,
         PaymentTransactionStatus status) : base(id)
     {
         PaymentId = paymentId;
@@ -19,7 +18,6 @@ public sealed class PaymentTransaction : Entity<Guid>
         Provider = provider;
         ProviderTransactionId = providerTransactionId;
         AmountMinor = amountMinor;
-        Amount = amount;
         Status = status;
         CreatedAt = DateTimeOffset.UtcNow;
     }
@@ -29,7 +27,6 @@ public sealed class PaymentTransaction : Entity<Guid>
     public string Provider { get; private set; }
     public string ProviderTransactionId { get; private set; }
     public long AmountMinor { get; private set; }
-    public Telehealth.Platform.Domain.Common.Money Amount { get; private set; }
     public PaymentTransactionStatus Status { get; private set; }
     public string StatusDetails { get; private set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; private set; }
@@ -41,8 +38,7 @@ public sealed class PaymentTransaction : Entity<Guid>
         Guid patientAccountId,
         string provider,
         string providerTransactionId,
-        long amountMinor,
-        Telehealth.Platform.Domain.Common.Money amount)
+        long amountMinor)
     {
         return new PaymentTransaction(
             Guid.NewGuid(),
@@ -51,7 +47,6 @@ public sealed class PaymentTransaction : Entity<Guid>
             provider,
             providerTransactionId,
             amountMinor,
-            amount,
             PaymentTransactionStatus.Pending);
     }
 

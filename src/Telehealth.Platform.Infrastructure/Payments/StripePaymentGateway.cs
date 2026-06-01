@@ -70,9 +70,8 @@ public class StripePaymentGateway : IPaymentGateway
             payment.Id,
             payment.PatientAccountId,
             ProviderName,
-            stripeResponse.Id,
-            payment.AmountMinor,
-            new Money(stripeResponse.Amount, stripeResponse.Currency));
+            payment.ExternalPaymentId,
+            payment.AmountMinor);
     }
 
     public async Task<PaymentTransaction> CapturePaymentAsync(
@@ -111,8 +110,7 @@ public class StripePaymentGateway : IPaymentGateway
             payment.PatientAccountId,
             ProviderName,
             stripeResponse.Id,
-            payment.AmountMinor,
-            new Money(stripeResponse.Amount, stripeResponse.Currency));
+            payment.AmountMinor);
     }
 
     public async Task<PaymentTransaction> RefundPaymentAsync(
@@ -150,8 +148,7 @@ public class StripePaymentGateway : IPaymentGateway
             Guid.Empty,
             ProviderName,
             stripeResponse.Id,
-            refund.AmountMinor,
-            new Money(refund.AmountMinor, refund.Currency));
+            refund.AmountMinor);
     }
 
     public async Task<PaymentTransaction> VoidPaymentAsync(
@@ -178,8 +175,7 @@ public class StripePaymentGateway : IPaymentGateway
             payment.PatientAccountId,
             ProviderName,
             payment.ExternalPaymentId,
-            payment.AmountMinor,
-            new Money(payment.AmountMinor, payment.Currency.ToString()));
+            payment.AmountMinor);
     }
 
     public async Task<bool> ValidateWebhookAsync(
