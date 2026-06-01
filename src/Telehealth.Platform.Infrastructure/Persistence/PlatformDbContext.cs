@@ -872,5 +872,32 @@ public sealed partial class PlatformDbContext : DbContext
             entity.HasIndex(x => x.PaymentId).HasDatabaseName("ix_disputes_payment_id");
             entity.HasIndex(x => x.Status).HasDatabaseName("ix_disputes_status");
         });
+
+        modelBuilder.Entity<BillingSession>(entity =>
+        {
+            entity.ToTable("billing_sessions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.ConsultationSessionId).HasColumnName("consultation_session_id");
+            entity.Property(x => x.WalletId).HasColumnName("wallet_id");
+            entity.Property(x => x.DoctorProfileId).HasColumnName("doctor_profile_id");
+            entity.Property(x => x.BillableSeconds).HasColumnName("billable_seconds");
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>();
+            entity.OwnsOne(x => x.GrossAmount!, g =>
+            {
+                g.Property(x => x.MinorUnits).HasColumnName("gross_amount_minor");
+                g.Property(x => x.Currency).HasColumnName("gross_currency").HasMaxLength(3);
+            });
+            entity.OwnsOne(x => x.PlatformFee!, p =>
+            {
+                p.Property(x => x.MinorUnits).HasColumnName("platform_fee_minor");
+                p.Property(x => x.Currency).HasColumnName("platform_fee_currency").HasMaxLength(3);
+            });
+            entity.OwnsOne(x => x.DoctorEarning!, d =>
+            {
+                d.Property(x => x.MinorUnits).HasColumnName("doctor_earning_minor");
+                d.Property(x => x.Currency).HasColumnName("doctor_earning_currency").HasMaxLength(3);
+            });
+        });
     }
 }

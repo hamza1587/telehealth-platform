@@ -151,15 +151,15 @@ public record ResearcherLoginRequest(string InstitutionEmail, string? ApiKey);
 public record ResearcherAuthResponse
 {
     public Guid ResearcherId { get; init; }
-    public string Institution { get; init; }
-    public string Token { get; init; }
+    public string Institution { get; init; } = string.Empty;
+    public string Token { get; init; } = string.Empty;
     public DateTimeOffset ExpiresAt { get; init; }
 }
 public record DownloadResponse
 {
-    public string DownloadUrl { get; init; }
-    public string FileName { get; init; }
-    public string Size { get; init; }
+    public string DownloadUrl { get; init; } = string.Empty;
+    public string FileName { get; init; } = string.Empty;
+    public string Size { get; init; } = string.Empty;
     public int RecordCount { get; init; }
 }
 public record PrivacyCheckRequest(int KAnonymityLevel = 5, double Epsilon = 1.0);
@@ -169,13 +169,13 @@ public record PrivacyCheckResponse
     public int CurrentKAnonymity { get; init; }
     public int RequestedKAnonymity { get; init; }
     public double Epsilon { get; init; }
-    public List<string> Recommendations { get; init; }
+    public List<string> Recommendations { get; init; } = new List<string>();
 }
 public record DataExportRequest
 {
     public Guid ResearcherId { get; init; }
-    public string ResearchPurpose { get; init; }
-    public List<string> DataDomains { get; init; }
+    public string ResearchPurpose { get; init; } = string.Empty;
+    public List<string> DataDomains { get; init; } = new List<string> { "Conditions", "Medications", "Allergies" };
     public string DeidentificationMethod { get; init; } = "k_anonymity";
     public int KAnonymityLevel { get; init; } = 5;
     public double Epsilon { get; init; } = 1.0;

@@ -103,5 +103,5 @@ public record PrivacyMetricsResponse
     public double Epsilon { get; init; }
     public bool SatisfiesPrivacyRequirements { get; init; }
     public int RecordCount { get; init; }
-    public List<string> QuirkIdentifiers { get; init; }
+    public List<string> QuirkIdentifiers { get; init; } = new List<string>();
 }

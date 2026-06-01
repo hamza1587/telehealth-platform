@@ -25,19 +25,21 @@ public sealed class BillingSession : Entity<Guid>
         Status = BillingSessionStatus.Pending;
     }
 
-    public Guid ConsultationSessionId { get; }
+    private BillingSession(Guid id) : base(id) { }
 
-    public Guid WalletId { get; }
+    public Guid ConsultationSessionId { get; private set; } = Guid.Empty;
 
-    public Guid DoctorProfileId { get; }
+    public Guid WalletId { get; private set; } = Guid.Empty;
 
-    public long BillableSeconds { get; }
+    public Guid DoctorProfileId { get; private set; } = Guid.Empty;
 
-    public Money GrossAmount { get; }
+    public long BillableSeconds { get; private set; }
 
-    public Money PlatformFee { get; }
+    public Money? GrossAmount { get; private set; }
 
-    public Money DoctorEarning { get; }
+    public Money? PlatformFee { get; private set; }
 
-    public BillingSessionStatus Status { get; private set; }
+    public Money? DoctorEarning { get; private set; }
+
+    public BillingSessionStatus Status { get; private set; } = BillingSessionStatus.Pending;
 }

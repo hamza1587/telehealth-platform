@@ -116,19 +116,19 @@ public class ExportAuditController : ControllerBase
 public record AuditTrailResponse
 {
     public Guid ExportId { get; init; }
-    public List<AuditEvent> Events { get; init; }
+    public List<AuditEvent> Events { get; init; } = new List<AuditEvent>();
 }
 
 public record AuditEvent
 {
     public DateTimeOffset Timestamp { get; init; }
-    public string Action { get; init; }
-    public string Actor { get; init; }
+    public string Action { get; init; } = string.Empty;
+    public string Actor { get; init; } = string.Empty;
     public string? Details { get; init; }
 }
 
 public record AccessTrackingRequest
 {
-    public string ResearcherId { get; init; }
-    public string IpAddress { get; init; }
+    public string ResearcherId { get; init; } = string.Empty;
+    public string IpAddress { get; init; } = string.Empty;
 }

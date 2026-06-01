@@ -167,44 +167,44 @@ public record PatientHealthRecordSummary
     public int Procedures { get; init; }
     public int Observations { get; init; }
     public DateTimeOffset LastUpdated { get; init; }
-    public string DataOrigin { get; init; }
+    public string DataOrigin { get; init; } = string.Empty;
     public bool IsCrossBorderAccessible { get; init; }
 }
 
 public record ConditionSummary
 {
     public Guid Id { get; init; }
-    public string Code { get; init; }
-    public string Display { get; init; }
-    public string ClinicalStatus { get; init; }
-    public string VerificationStatus { get; init; }
+    public string Code { get; init; } = string.Empty;
+    public string Display { get; init; } = string.Empty;
+    public string ClinicalStatus { get; init; } = string.Empty;
+    public string VerificationStatus { get; init; } = string.Empty;
     public DateTimeOffset OnsetDateTime { get; init; }
 }
 
 public record MedicationSummary
 {
     public Guid Id { get; init; }
-    public string Code { get; init; }
-    public string Display { get; init; }
-    public string Dosage { get; init; }
-    public string Frequency { get; init; }
+    public string Code { get; init; } = string.Empty;
+    public string Display { get; init; } = string.Empty;
+    public string Dosage { get; init; } = string.Empty;
+    public string Frequency { get; init; } = string.Empty;
     public DateTimeOffset StartDate { get; init; }
 }
 
 public record AllergySummary
 {
     public Guid Id { get; init; }
-    public string Code { get; init; }
-    public string Display { get; init; }
-    public string ClinicalStatus { get; init; }
-    public string Criticality { get; init; }
+    public string Code { get; init; } = string.Empty;
+    public string Display { get; init; } = string.Empty;
+    public string ClinicalStatus { get; init; } = string.Empty;
+    public string Criticality { get; init; } = string.Empty;
 }
 
 public record ImmunizationSummary
 {
     public Guid Id { get; init; }
-    public string VaccineCode { get; init; }
-    public string Display { get; init; }
+    public string VaccineCode { get; init; } = string.Empty;
+    public string Display { get; init; } = string.Empty;
     public DateTimeOffset AdministrationDate { get; init; }
     public string? LotNumber { get; init; }
 }
@@ -212,10 +212,10 @@ public record ImmunizationSummary
 public record ObservationSummary
 {
     public Guid Id { get; init; }
-    public string Code { get; init; }
-    public string Display { get; init; }
-    public string Value { get; init; }
-    public string Unit { get; init; }
+    public string Code { get; init; } = string.Empty;
+    public string Display { get; init; } = string.Empty;
+    public string Value { get; init; } = string.Empty;
+    public string Unit { get; init; } = string.Empty;
     public DateTimeOffset EffectiveDateTime { get; init; }
 }
 

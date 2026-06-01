@@ -423,7 +423,7 @@ public class PatientHealthRecordService : IPatientHealthRecordService
                     PerformedDate = procedure.Performed is FhirDateTime dt ?
                         dt.ToDateTimeOffset() : DateTimeOffset.UtcNow,
                     Status = procedure.Status?.ToString() ?? "completed",
-                    Notes = procedure.Note?.FirstOrDefault()?.Text
+                    Notes = procedure.Note?.FirstOrDefault()?.Text?.ToString() ?? string.Empty
                 });
             }
         }

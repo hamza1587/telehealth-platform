@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using Telehealth.Platform.Domain.Services;
 using System.Security.Cryptography;
 using System.Text;
+using Xunit;
 
 namespace Telehealth.Platform.EHDS.Tests;
 

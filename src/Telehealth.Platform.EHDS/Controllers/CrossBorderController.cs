@@ -117,18 +117,18 @@ public record CrossBorderExchangeRequest(
 
 public record CrossBorderExchangeResponse
 {
-    public string FhirData { get; init; }
+    public string FhirData { get; init; } = string.Empty;
     public List<Dictionary<string, object>>? DeidentifiedData { get; init; }
     public Guid ExchangeId { get; init; }
     public Guid PatientId { get; init; }
-    public string RecipientCountry { get; init; }
+    public string RecipientCountry { get; init; } = string.Empty;
 }
 
 public record SupportedCountry
 {
     public bool IsEhdsCompliant { get; init; }
-    public string Code { get; init; }
-    public string Name { get; init; }
+    public string Code { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
 }
 
 public record ValidateAccessRequest(Guid PatientId, string RecipientCountry);

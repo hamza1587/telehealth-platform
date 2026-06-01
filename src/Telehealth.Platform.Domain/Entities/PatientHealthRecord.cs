@@ -54,11 +54,11 @@ public class PatientHealthRecord
 public class Condition
 {
     public Guid Id { get; set; }
-    public string Code { get; set; }
-    public string System { get; set; }
-    public string Display { get; set; }
-    public string ClinicalStatus { get; set; }
-    public string VerificationStatus { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string System { get; set; } = string.Empty;
+    public string Display { get; set; } = string.Empty;
+    public string ClinicalStatus { get; set; } = string.Empty;
+    public string VerificationStatus { get; set; } = string.Empty;
     public DateTimeOffset OnsetDateTime { get; set; }
     public string? Notes { get; set; }
 }
@@ -66,11 +66,11 @@ public class Condition
 public class Medication
 {
     public Guid Id { get; set; }
-    public string Code { get; set; }
-    public string System { get; set; }
-    public string Display { get; set; }
-    public string Dosage { get; set; }
-    public string Frequency { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string System { get; set; } = string.Empty;
+    public string Display { get; set; } = string.Empty;
+    public string Dosage { get; set; } = string.Empty;
+    public string Frequency { get; set; } = string.Empty;
     public DateTimeOffset StartDate { get; set; }
     public DateTimeOffset? EndDate { get; set; }
     public string? Prescriber { get; set; }
@@ -79,20 +79,20 @@ public class Medication
 public class AllergyIntolerance
 {
     public Guid Id { get; set; }
-    public string Code { get; set; }
-    public string System { get; set; }
-    public string Display { get; set; }
-    public string ClinicalStatus { get; set; }
-    public string Criticality { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string System { get; set; } = string.Empty;
+    public string Display { get; set; } = string.Empty;
+    public string ClinicalStatus { get; set; } = string.Empty;
+    public string Criticality { get; set; } = string.Empty;
     public string? Reaction { get; set; }
 }
 
 public class Immunization
 {
     public Guid Id { get; set; }
-    public string VaccineCode { get; set; }
-    public string System { get; set; }
-    public string Display { get; set; }
+    public string VaccineCode { get; set; } = string.Empty;
+    public string System { get; set; } = string.Empty;
+    public string Display { get; set; } = string.Empty;
     public DateTimeOffset AdministrationDate { get; set; }
     public string? LotNumber { get; set; }
     public string? Site { get; set; }
@@ -101,9 +101,9 @@ public class Immunization
 public class Procedure
 {
     public Guid Id { get; set; }
-    public string Code { get; set; }
-    public string System { get; set; }
-    public string Display { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string System { get; set; } = string.Empty;
+    public string Display { get; set; } = string.Empty;
     public DateTimeOffset PerformedDate { get; set; }
     public string? Status { get; set; }
     public string? Notes { get; set; }
@@ -112,11 +112,11 @@ public class Procedure
 public class Observation
 {
     public Guid Id { get; set; }
-    public string Code { get; set; }
-    public string System { get; set; }
-    public string Display { get; set; }
-    public string Value { get; set; }
-    public string Unit { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string System { get; set; } = string.Empty;
+    public string Display { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public string Unit { get; set; } = string.Empty;
     public DateTimeOffset EffectiveDateTime { get; set; }
     public string? ReferenceRange { get; set; }
 }

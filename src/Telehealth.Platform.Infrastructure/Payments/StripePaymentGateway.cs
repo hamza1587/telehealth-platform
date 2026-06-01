@@ -199,13 +199,13 @@ public class StripePaymentGateway : IPaymentGateway
 
         return new PaymentWebhookEvent
         {
-            EventId = webhook.Id,
-            EventType = webhook.Type,
+            EventId = webhook?.Id ?? string.Empty,
+            EventType = webhook?.Type ?? string.Empty,
             PaymentId = Guid.Empty,
-            ProviderTransactionId = webhook.Data?.Object?.Id ?? string.Empty,
-            AmountMinor = webhook.Data?.Object?.Amount ?? 0,
-            Currency = webhook.Data?.Object?.Currency ?? string.Empty,
-            Status = MapStripeStatus(webhook.Data?.Object?.Status),
+            ProviderTransactionId = webhook?.Data?.Object?.Id ?? string.Empty,
+            AmountMinor = webhook?.Data?.Object?.Amount ?? 0,
+            Currency = webhook?.Data?.Object?.Currency ?? string.Empty,
+            Status = MapStripeStatus(webhook?.Data?.Object?.Status),
             CreatedAt = DateTimeOffset.UtcNow
         };
     }

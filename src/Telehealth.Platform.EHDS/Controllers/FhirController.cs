@@ -417,7 +417,7 @@ Criticality = (FhirAllergyIntolerance.AllergyIntoleranceCriticality?)Enum.Parse(
                 var fhirImmunization = new FhirImmunization
                 {
                     Id = immunization.Id.ToString(),
-                    Status = ImmunizationStatus.Completed,
+                    Status = FhirImmunization.ImmunizationStatusCodes.Completed,
                     VaccineCode = new CodeableConcept
                     {
                         Coding = new List<Coding>
