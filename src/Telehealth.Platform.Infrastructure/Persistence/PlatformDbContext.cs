@@ -899,5 +899,50 @@ public sealed partial class PlatformDbContext : DbContext
                 d.Property(x => x.Currency).HasColumnName("doctor_earning_currency").HasMaxLength(3);
             });
         });
+
+        // Tenant Configuration
+        modelBuilder.Entity<Tenant>(entity =>
+        {
+            entity.ToTable("tenants");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Subdomain).HasColumnName("subdomain").HasMaxLength(100).IsRequired();
+            entity.Property(x => x.IsActive).HasColumnName("is_active");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            entity.OwnsOne(x => x.Settings, s =>
+            {
+                s.Property(x => x.LogoUrl).HasColumnName("settings_logo_url").HasMaxLength(500);
+                s.Property(x => x.PrimaryColor).HasColumnName("settings_primary_color").HasMaxLength(20);
+                s.Property(x => x.SecondaryColor).HasColumnName("settings_secondary_color").HasMaxLength(20);
+                s.Property(x => x.MaxUsers).HasColumnName("settings_max_users");
+                s.Property(x => x.MaxStorageMb).HasColumnName("settings_max_storage_mb");
+                s.Property(x => x.EnableAiFeatures).HasColumnName("settings_enable_ai_features");
+                s.Property(x => x.EnableEhrIntegration).HasColumnName("settings_enable_ehr_integration");
+                s.Property(x => x.AllowedSpecialties)
+                    .HasColumnName("settings_allowed_specialties")
+                    .HasColumnType("text[]");
+            });
+
+            entity.HasIndex(x => x.Subdomain).IsUnique().HasDatabaseName("ix_tenants_subdomain");
+        });
+
+        // TenantMembership Configuration
+        modelBuilder.Entity<TenantMembership>(entity =>
+        {
+            entity.ToTable("tenant_memberships");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.TenantId).HasColumnName("tenant_id");
+            entity.Property(x => x.UserId).HasColumnName("user_id");
+            entity.Property(x => x.Role).HasColumnName("role").HasConversion<string>().HasMaxLength(50);
+            entity.Property(x => x.Permissions).HasColumnName("permissions").HasColumnType("text[]");
+            entity.Property(x => x.AssignedAt).HasColumnName("assigned_at");
+            entity.Property(x => x.IsActive).HasColumnName("is_active");
+
+            entity.HasIndex(x => new { x.TenantId, x.UserId }).IsUnique().HasDatabaseName("ix_tenant_memberships_tenant_user");
+        });
     }
 }
