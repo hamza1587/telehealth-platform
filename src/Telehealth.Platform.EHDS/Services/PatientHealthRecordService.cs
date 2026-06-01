@@ -3,6 +3,12 @@ using Hl7.Fhir.Serialization;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Telehealth.Platform.Domain.Entities;
+using FhirCondition = Hl7.Fhir.Model.Condition;
+using FhirAllergyIntolerance = Hl7.Fhir.Model.AllergyIntolerance;
+using FhirImmunization = Hl7.Fhir.Model.Immunization;
+using FhirProcedure = Hl7.Fhir.Model.Procedure;
+using FhirObservation = Hl7.Fhir.Model.Observation;
+using FhirMedicationRequest = Hl7.Fhir.Model.MedicationRequest;
 
 namespace Telehealth.Platform.EHDS.Services;
 
@@ -78,14 +84,12 @@ public class PatientHealthRecordService : IPatientHealthRecordService
         if (record == null)
             throw new ArgumentException("Record not found", nameof(recordId));
 
-        // Convert to FHIR R4 format using official FHIR library
         var bundle = new Bundle
         {
             Type = Bundle.BundleType.Collection,
             Entry = new List<Bundle.EntryComponent>()
         };
 
-        // Add patient resource
         var patient = new Patient
         {
             Id = record.PatientId.ToString(),
@@ -96,10 +100,9 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             Resource = patient
         });
 
-        // Add conditions
         foreach (var condition in record.Conditions)
         {
-            var fhirCondition = new Hl7.Fhir.Model.Condition
+            var fhirCondition = new FhirCondition
             {
                 Id = condition.Id.ToString(),
                 ClinicalStatus = new CodeableConcept
@@ -144,10 +147,9 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             });
         }
 
-        // Add medications
         foreach (var medication in record.Medications)
         {
-            var medRequest = new MedicationRequest
+            var medRequest = new FhirMedicationRequest
             {
                 Id = medication.Id.ToString(),
                 Medication = new CodeableConcept
@@ -171,7 +173,7 @@ public class PatientHealthRecordService : IPatientHealthRecordService
                         {
                             Repeat = new Timing.RepeatComponent
                             {
-                                Frequency = medication.Frequency
+                                Frequency = int.Parse(medication.Frequency.Split(' ')[0])
                             }
                         }
                     }
@@ -184,10 +186,9 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             });
         }
 
-        // Add allergies
         foreach (var allergy in record.Allergies)
         {
-            var allergyIntolerance = new AllergyIntolerance
+            var allergyIntolerance = new FhirAllergyIntolerance
             {
                 Id = allergy.Id.ToString(),
                 ClinicalStatus = new CodeableConcept
@@ -201,8 +202,8 @@ public class PatientHealthRecordService : IPatientHealthRecordService
                         }
                     }
                 },
-                Criticality = (AllergyIntolerance.AllergyIntoleranceCriticality?)Enum.Parse(
-                    typeof(AllergyIntolerance.AllergyIntoleranceCriticality), 
+                Criticality = (FhirAllergyIntolerance.AllergyIntoleranceCriticality?)Enum.Parse(
+                    typeof(FhirAllergyIntolerance.AllergyIntoleranceCriticality), 
                     allergy.Criticality, 
                     true),
                 Code = new CodeableConcept
@@ -224,13 +225,12 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             });
         }
 
-        // Add immunizations
         foreach (var immunization in record.Immunizations)
         {
-            var fhirImmunization = new Immunization
+            var fhirImmunization = new FhirImmunization
             {
                 Id = immunization.Id.ToString(),
-                Status = "completed",
+                Status = FhirImmunization.ImmunizationStatusCodes.Completed,
                 VaccineCode = new CodeableConcept
                 {
                     Coding = new List<Coding>
@@ -252,10 +252,9 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             });
         }
 
-        // Add procedures
         foreach (var procedure in record.Procedures)
         {
-            var fhirProcedure = new Procedure
+            var fhirProcedure = new FhirProcedure
             {
                 Id = procedure.Id.ToString(),
                 Status = (EventStatus?)Enum.Parse(typeof(EventStatus), procedure.Status ?? "completed", true),
@@ -279,10 +278,9 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             });
         }
 
-        // Add observations
         foreach (var observation in record.Observations)
         {
-            var fhirObservation = new Observation
+            var fhirObservation = new FhirObservation
             {
                 Id = observation.Id.ToString(),
                 Status = ObservationStatus.Final,
@@ -311,37 +309,33 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             });
         }
 
-        // Serialize to JSON
         var serializer = new FhirJsonSerializer();
         return serializer.SerializeToString(bundle);
     }
 
     public async Task<string> ImportFromFhirAsync(string fhirJson)
     {
-        // Parse FHIR JSON using official FHIR library and convert to PatientHealthRecord
         var parser = new FhirJsonParser();
         var bundle = parser.Parse<Bundle>(fhirJson);
-        
+
         if (bundle == null || bundle.Entry == null)
             throw new ArgumentException("Invalid FHIR bundle");
 
-        // Extract patient ID
         var patientResource = bundle.Entry
             .FirstOrDefault(e => e.Resource is Patient)?.Resource as Patient;
-        
+
         var patientId = patientResource?.Id != null ? 
             Guid.Parse(patientResource.Id) : Guid.NewGuid();
-        
+
         var record = new PatientHealthRecord(patientId, "FHIR Import", false);
-        
-        // Parse conditions
-        foreach (var entry in bundle.Entry.Where(e => e.Resource is Condition))
+
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is FhirCondition))
         {
-            var condition = entry.Resource as Condition;
+            var condition = entry.Resource as FhirCondition;
             if (condition?.Code?.Coding?.FirstOrDefault() != null)
             {
                 var coding = condition.Code.Coding.First();
-                record.AddCondition(new Condition
+                record.AddCondition(new Telehealth.Platform.Domain.Entities.Condition
                 {
                     Id = condition.Id != null ? Guid.Parse(condition.Id) : Guid.NewGuid(),
                     Code = coding.Code,
@@ -354,16 +348,15 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             }
         }
 
-        // Parse medications
-        foreach (var entry in bundle.Entry.Where(e => e.Resource is MedicationRequest))
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is FhirMedicationRequest))
         {
-            var medRequest = entry.Resource as MedicationRequest;
-            if (medRequest?.Medication is CodeableConcept medConcept && 
+            var medRequest = entry.Resource as FhirMedicationRequest;
+            if (medRequest?.Medication is CodeableConcept medConcept &&
                 medConcept.Coding?.FirstOrDefault() != null)
             {
                 var coding = medConcept.Coding.First();
                 var dosage = medRequest.DosageInstruction?.FirstOrDefault();
-                record.AddMedication(new Medication
+                record.AddMedication(new Telehealth.Platform.Domain.Entities.Medication
                 {
                     Id = medRequest.Id != null ? Guid.Parse(medRequest.Id) : Guid.NewGuid(),
                     Code = coding.Code,
@@ -376,14 +369,13 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             }
         }
 
-        // Parse allergies
-        foreach (var entry in bundle.Entry.Where(e => e.Resource is AllergyIntolerance))
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is FhirAllergyIntolerance))
         {
-            var allergy = entry.Resource as AllergyIntolerance;
+            var allergy = entry.Resource as FhirAllergyIntolerance;
             if (allergy?.Code?.Coding?.FirstOrDefault() != null)
             {
                 var coding = allergy.Code.Coding.First();
-                record.Allergies.Add(new AllergyIntolerance
+                record.Allergies.Add(new Telehealth.Platform.Domain.Entities.AllergyIntolerance
                 {
                     Id = allergy.Id != null ? Guid.Parse(allergy.Id) : Guid.NewGuid(),
                     Code = coding.Code,
@@ -391,25 +383,24 @@ public class PatientHealthRecordService : IPatientHealthRecordService
                     Display = coding.Display,
                     ClinicalStatus = allergy.ClinicalStatus?.Coding?.FirstOrDefault()?.Code ?? "active",
                     Criticality = allergy.Criticality?.ToString() ?? "low",
-                    Reaction = allergy.Reaction
+                    Reaction = allergy.Reaction?.FirstOrDefault()?.Manifestation?.FirstOrDefault()?.Text
                 });
             }
         }
 
-        // Parse immunizations
-        foreach (var entry in bundle.Entry.Where(e => e.Resource is Immunization))
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is FhirImmunization))
         {
-            var immunization = entry.Resource as Immunization;
+            var immunization = entry.Resource as FhirImmunization;
             if (immunization?.VaccineCode?.Coding?.FirstOrDefault() != null)
             {
                 var coding = immunization.VaccineCode.Coding.First();
-                record.Immunizations.Add(new Immunization
+                record.Immunizations.Add(new Telehealth.Platform.Domain.Entities.Immunization
                 {
                     Id = immunization.Id != null ? Guid.Parse(immunization.Id) : Guid.NewGuid(),
                     VaccineCode = coding.Code,
                     System = coding.System,
                     Display = coding.Display,
-                    AdministrationDate = immunization.Occurrence is FhirDateTime dt ? 
+                    AdministrationDate = immunization.Occurrence is FhirDateTime dt ?
                         dt.ToDateTimeOffset() : DateTimeOffset.UtcNow,
                     LotNumber = immunization.LotNumber,
                     Site = immunization.Site?.Coding?.FirstOrDefault()?.Display
@@ -417,20 +408,19 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             }
         }
 
-        // Parse procedures
-        foreach (var entry in bundle.Entry.Where(e => e.Resource is Procedure))
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is FhirProcedure))
         {
-            var procedure = entry.Resource as Procedure;
+            var procedure = entry.Resource as FhirProcedure;
             if (procedure?.Code?.Coding?.FirstOrDefault() != null)
             {
                 var coding = procedure.Code.Coding.First();
-                record.Procedures.Add(new Procedure
+                record.Procedures.Add(new Telehealth.Platform.Domain.Entities.Procedure
                 {
                     Id = procedure.Id != null ? Guid.Parse(procedure.Id) : Guid.NewGuid(),
                     Code = coding.Code,
                     System = coding.System,
                     Display = coding.Display,
-                    PerformedDate = procedure.Performed is FhirDateTime dt ? 
+                    PerformedDate = procedure.Performed is FhirDateTime dt ?
                         dt.ToDateTimeOffset() : DateTimeOffset.UtcNow,
                     Status = procedure.Status?.ToString() ?? "completed",
                     Notes = procedure.Note?.FirstOrDefault()?.Text
@@ -438,15 +428,14 @@ public class PatientHealthRecordService : IPatientHealthRecordService
             }
         }
 
-        // Parse observations
-        foreach (var entry in bundle.Entry.Where(e => e.Resource is Observation))
+        foreach (var entry in bundle.Entry.Where(e => e.Resource is FhirObservation))
         {
-            var observation = entry.Resource as Observation;
+            var observation = entry.Resource as FhirObservation;
             if (observation?.Code?.Coding?.FirstOrDefault() != null)
             {
                 var coding = observation.Code.Coding.First();
                 var value = observation.Value as Quantity;
-                record.Observations.Add(new Observation
+                record.Observations.Add(new Telehealth.Platform.Domain.Entities.Observation
                 {
                     Id = observation.Id != null ? Guid.Parse(observation.Id) : Guid.NewGuid(),
                     Code = coding.Code,
@@ -454,7 +443,7 @@ public class PatientHealthRecordService : IPatientHealthRecordService
                     Display = coding.Display,
                     Value = value?.Value?.ToString() ?? "0",
                     Unit = value?.Unit ?? "",
-                    EffectiveDateTime = observation.Effective is FhirDateTime dt ? 
+                    EffectiveDateTime = observation.Effective is FhirDateTime dt ?
                         dt.ToDateTimeOffset() : DateTimeOffset.UtcNow
                 });
             }

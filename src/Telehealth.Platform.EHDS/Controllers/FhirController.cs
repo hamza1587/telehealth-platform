@@ -4,6 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using Telehealth.Platform.Domain.Entities;
 using Telehealth.Platform.EHDS.Services;
+using FhirCondition = Hl7.Fhir.Model.Condition;
+using FhirAllergyIntolerance = Hl7.Fhir.Model.AllergyIntolerance;
+using FhirImmunization = Hl7.Fhir.Model.Immunization;
+using FhirProcedure = Hl7.Fhir.Model.Procedure;
+using FhirObservation = Hl7.Fhir.Model.Observation;
+using FhirMedicationRequest = Hl7.Fhir.Model.MedicationRequest;
 
 namespace Telehealth.Platform.EHDS.Controllers;
 
@@ -205,7 +211,7 @@ public class FhirController : ControllerBase
 
             foreach (var condition in record.Conditions)
             {
-                var fhirCondition = new Condition
+                var fhirCondition = new FhirCondition
                 {
                     Id = condition.Id.ToString(),
                     ClinicalStatus = new CodeableConcept
@@ -343,7 +349,7 @@ public class FhirController : ControllerBase
 
             foreach (var allergy in record.Allergies)
             {
-                var allergyIntolerance = new AllergyIntolerance
+                var allergyIntolerance = new FhirAllergyIntolerance
                 {
                     Id = allergy.Id.ToString(),
                     ClinicalStatus = new CodeableConcept
@@ -357,10 +363,10 @@ public class FhirController : ControllerBase
                             }
                         }
                     },
-                    Criticality = (AllergyIntolerance.AllergyIntoleranceCriticality?)Enum.Parse(
-                        typeof(AllergyIntolerance.AllergyIntoleranceCriticality), 
-                        allergy.Criticality, 
-                        true),
+Criticality = (FhirAllergyIntolerance.AllergyIntoleranceCriticality?)Enum.Parse(
+                                typeof(FhirAllergyIntolerance.AllergyIntoleranceCriticality),
+                                allergy.ClinicalStatus,
+                                true),
                     Code = new CodeableConcept
                     {
                         Coding = new List<Coding>
@@ -408,10 +414,10 @@ public class FhirController : ControllerBase
 
             foreach (var immunization in record.Immunizations)
             {
-                var fhirImmunization = new Immunization
+                var fhirImmunization = new FhirImmunization
                 {
                     Id = immunization.Id.ToString(),
-                    Status = "completed",
+                    Status = ImmunizationStatus.Completed,
                     VaccineCode = new CodeableConcept
                     {
                         Coding = new List<Coding>
@@ -461,7 +467,7 @@ public class FhirController : ControllerBase
 
             foreach (var procedure in record.Procedures)
             {
-                var fhirProcedure = new Procedure
+                var fhirProcedure = new FhirProcedure
                 {
                     Id = procedure.Id.ToString(),
                     Status = (EventStatus?)Enum.Parse(typeof(EventStatus), procedure.Status ?? "completed", true),
@@ -513,7 +519,7 @@ public class FhirController : ControllerBase
 
             foreach (var observation in record.Observations)
             {
-                var fhirObservation = new Observation
+                var fhirObservation = new FhirObservation
                 {
                     Id = observation.Id.ToString(),
                     Status = ObservationStatus.Final,
