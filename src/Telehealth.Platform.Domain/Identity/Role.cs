@@ -13,14 +13,14 @@ public sealed class Role : Entity<Guid>
         Name = name;
         NormalizedName = name.ToUpperInvariant();
         Description = description;
-        Priority = priority ?? 0;
+        Priority = priority;
         CreatedAt = DateTimeOffset.UtcNow;
     }
 
     public string Name { get; private set; }
     public string NormalizedName { get; private set; }
     public string? Description { get; private set; }
-    public int Priority { get; private set; }
+    public int? Priority { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
     public ICollection<UserRole> UserRoles { get; private set; } = [];

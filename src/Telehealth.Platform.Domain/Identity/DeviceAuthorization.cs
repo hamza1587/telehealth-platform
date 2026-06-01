@@ -14,7 +14,7 @@ public sealed class DeviceAuthorization : Entity<Guid>
         string deviceId,
         string? deviceName,
         string? deviceType,
-        string? os,
+        string? operatingSystem,
         string? browser,
         string ipAddress,
         string? userAgent,
@@ -25,7 +25,7 @@ public sealed class DeviceAuthorization : Entity<Guid>
         DeviceId = deviceId;
         DeviceName = deviceName;
         DeviceType = deviceType;
-        OperatingSystem = os;
+        OperatingSystem = operatingSystem;
         Browser = browser;
         IpAddress = ipAddress;
         UserAgent = userAgent;
