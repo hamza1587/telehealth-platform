@@ -1,3 +1,4 @@
+using Scalar.AspNetCore;
 using Telehealth.Platform.Api.Admin;
 using Telehealth.Platform.Api.Analytics;
 using Telehealth.Platform.Api.Appointments;
@@ -57,6 +58,17 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("Telehealth Platform API")
+            .WithTheme(ScalarTheme.Purple)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
+            .WithSidebar(true)
+            .WithDarkMode(true)
+            .WithSearchHotKey("k")
+            .WithOpenApiRoutePattern("/openapi/{documentName}.json");
+    });
 }
 
 // Seed identity data
