@@ -1,13 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using Telehealth.Platform.Prescription.Data;
 using Telehealth.Platform.Prescription.Services;
+using Telehealth.Platform.Shared;
+
+var DocsHtml = ApiDocs.GetHtml("Telehealth Platform - Prescription Service API");
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 
 // Register HttpClient
 builder.Services.AddHttpClient();
@@ -38,8 +40,8 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi("/openapi/{name}/document.json");
+    app.MapGet("/docs", () => Results.Content(DocsHtml, "text/html"));
 }
 
 app.UseHttpsRedirection();

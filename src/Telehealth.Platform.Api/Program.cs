@@ -1,4 +1,3 @@
-using Scalar.AspNetCore;
 using Telehealth.Platform.Api.Admin;
 using Telehealth.Platform.Api.Analytics;
 using Telehealth.Platform.Api.Appointments;
@@ -14,13 +13,11 @@ using Telehealth.Platform.Api.InstantConsultation;
 using Telehealth.Platform.Api.Middleware;
 using Telehealth.Platform.Api.Notifications;
 using Telehealth.Platform.Api.Patients;
-using Telehealth.Platform.Api.Payments;
 using Telehealth.Platform.Api.Prescriptions;
 using Telehealth.Platform.Api.Reviews;
 using Telehealth.Platform.Api.Research;
 using Telehealth.Platform.Api.Support;
 using Telehealth.Platform.Api.Wallets;
-using Telehealth.Platform.Infrastructure.Performance;
 using Telehealth.Platform.Application;
 using Telehealth.Platform.Infrastructure;
 using Telehealth.Platform.Infrastructure.Health;
@@ -28,6 +25,9 @@ using Telehealth.Platform.Infrastructure.Identity;
 using Telehealth.Platform.Infrastructure.Persistence;
 using Telehealth.Platform.Integrations.Medplum;
 using Telehealth.Platform.Integrations.Medplum.Health;
+using Telehealth.Platform.Shared;
+
+var DocsHtml = ApiDocs.GetHtml("Telehealth Platform API");
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,18 +57,8 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("Telehealth Platform API")
-            .WithTheme(ScalarTheme.Purple)
-            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
-            .WithSidebar(true)
-            .WithDarkMode(true)
-            .WithSearchHotKey("k")
-            .WithOpenApiRoutePattern("/openapi/{documentName}.json");
-    });
+    app.MapOpenApi("/openapi/{name}/document.json");
+    app.MapGet("/docs", () => Results.Content(DocsHtml, "text/html"));
 }
 
 // Seed identity data
