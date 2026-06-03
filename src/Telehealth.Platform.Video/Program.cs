@@ -16,6 +16,7 @@ builder.Services.AddDbContext<VideoDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("VideoDatabase")));
 
 // Register video services
+builder.Services.AddSingleton<ILiveKitTokenService, LiveKitTokenService>();
 builder.Services.AddScoped<IVideoService, VideoService>();
 builder.Services.AddScoped<IRecordingService, RecordingService>();
 builder.Services.AddSingleton<INetworkQualityService, NetworkQualityService>();
@@ -38,6 +39,13 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi("/openapi/{name}/document.json");
     app.MapGet("/docs", () => Results.Content(DocsHtml, "text/html"));
+}
+
+// Ensure schema is up to date on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<VideoDbContext>();
+    db.Database.EnsureCreated();
 }
 
 app.UseHttpsRedirection();

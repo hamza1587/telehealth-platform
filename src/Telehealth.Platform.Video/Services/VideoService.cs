@@ -7,16 +7,12 @@ namespace Telehealth.Platform.Video.Services;
 public class VideoService : IVideoService
 {
     private readonly VideoDbContext _context;
-    private readonly string _accountSid;
-    private readonly string _apiKey;
-    private readonly string _apiSecret;
+    private readonly ILiveKitTokenService _tokenService;
 
-    public VideoService(VideoDbContext context, IConfiguration configuration)
+    public VideoService(VideoDbContext context, ILiveKitTokenService tokenService)
     {
         _context = context;
-        _accountSid = configuration["Twilio:AccountSid"] ?? throw new ArgumentNullException("Twilio:AccountSid");
-        _apiKey = configuration["Twilio:ApiKey"] ?? throw new ArgumentNullException("Twilio:ApiKey");
-        _apiSecret = configuration["Twilio:ApiSecret"] ?? throw new ArgumentNullException("Twilio:ApiSecret");
+        _tokenService = tokenService;
     }
 
     public async Task<VideoRoom> CreateRoomAsync(string roomName, int maxParticipants, string countryCode = "US")
@@ -45,7 +41,7 @@ public class VideoService : IVideoService
             throw new ArgumentException("Room not found", nameof(roomId));
         }
 
-        room.Activate($"TWILIO-{Guid.NewGuid()}");
+        room.Activate($"LIVEKIT-{Guid.NewGuid():N}");
         await _context.SaveChangesAsync();
         return room;
     }
@@ -123,9 +119,6 @@ public class VideoService : IVideoService
             throw new ArgumentException("Room not found", nameof(roomId));
         }
 
-        // TODO: Implement proper Twilio JWT token generation when credentials are configured
-        // This requires Twilio.JWT package or manual JWT construction
-        var token = $"token-{Guid.NewGuid()}-{participantIdentity}-{room.TwilioRoomSid}";
-        return await Task.FromResult(token);
+        return await Task.FromResult(_tokenService.GenerateToken(participantIdentity, room.RoomName));
     }
 }

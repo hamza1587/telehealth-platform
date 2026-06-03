@@ -11,6 +11,7 @@ public class VideoDbContext : DbContext
 
     public DbSet<VideoRoom> VideoRooms { get; set; }
     public DbSet<RecordingSession> RecordingSessions { get; set; }
+    public DbSet<CallSession> CallSessions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -42,6 +43,23 @@ public class VideoDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.RoomId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CallSession>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ConsultationId).IsRequired();
+            entity.Property(e => e.RoomId).IsRequired();
+            entity.Property(e => e.InitiatedBy).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.Room)
+                .WithMany()
+                .HasForeignKey(e => e.RoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ConsultationId);
         });
     }
 }
