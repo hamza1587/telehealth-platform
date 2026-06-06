@@ -1,0 +1,111 @@
+# PostgreSQL HA — primary + streaming-replica StatefulSet
+# Uses Zalando postgres-operator pattern; install operator before applying:
+#   kubectl apply -f https://raw.githubusercontent.com/zalando/postgres-operator/master/docs/quickstart/operator_installation.yaml
+#
+# Alternative: replace this manifest with Bitnami PostgreSQL HA Helm chart:
+#   helm install telehealth-postgres bitnami/postgresql-ha -f postgres-values.yaml
+
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: telehealth-postgres-cluster
+  namespace: telehealth
+  labels:
+    app: telehealth-postgres
+spec:
+  teamId: "telehealth"
+  volume:
+    size: 20Gi
+    storageClass: premium-rwo
+  numberOfInstances: 3
+  users:
+    telehealth:
+      - superuser
+      - createdb
+  databases:
+    telehealth_platform: telehealth
+  postgresql:
+    version: "16"
+    parameters:
+      max_connections: "200"
+      shared_buffers: "256MB"
+      effective_cache_size: "1GB"
+      wal_level: "replica"
+      max_wal_senders: "10"
+      wal_keep_size: "1GB"
+      hot_standby: "on"
+      synchronous_commit: "remote_apply"
+      synchronous_standby_names: "ANY 1 (*)"
+      log_min_duration_statement: "1000"
+      archive_mode: "on"
+      archive_command: "wal-g wal-push %p"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  patroni:
+    failsafe_mode: false
+    loop_wait: 10
+    ttl: 30
+    retry_timeout: 10
+    maximum_lag_on_failover: 33554432
+---
+# ConfigMap: WAL-G backup configuration (S3-compatible storage)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: walg-backup-config
+  namespace: telehealth
+data:
+  WALG_S3_PREFIX: "s3://telehealth-backups/postgres/wal"
+  AWS_REGION: "eu-west-1"
+  WALG_UPLOAD_CONCURRENCY: "8"
+  WALG_DOWNLOAD_CONCURRENCY: "8"
+  WALG_UPLOAD_DISK_CONCURRENCY: "2"
+  WALG_DELTA_MAX_STEPS: "6"
+  WALG_COMPRESSION_METHOD: "lz4"
+---
+# Nightly base-backup job (incremental WAL is continuous via archive_command above)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-base-backup
+  namespace: telehealth
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: postgres-backup-sa
+          containers:
+            - name: walg-backup
+              image: registry.opensource.zalan.do/acid/spilo-16:3.0-p1
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  export PGHOST=$(POSTGRES_HOST)
+                  export PGUSER=telehealth
+                  wal-g backup-push $PGDATA
+                  wal-g delete retain FULL 7 --confirm
+              env:
+                - name: POSTGRES_HOST
+                  value: "telehealth-postgres-cluster"
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: telehealth.telehealth-postgres-cluster.credentials.postgresql.acid.zalan.do
+                      key: password
+              envFrom:
+                - configMapRef:
+                    name: walg-backup-config
+                - secretRef:
+                    name: telehealth-aws-credentials
+          restartPolicy: OnFailure

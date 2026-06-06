@@ -1,0 +1,32 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: telehealth-platform-pdb
+  namespace: telehealth
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: telehealth-platform
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: telehealth-postgres-pdb
+  namespace: telehealth
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: telehealth-postgres
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: telehealth-redis-pdb
+  namespace: telehealth
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: telehealth-redis
