@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Telehealth.Platform.Domain.Support;
+using Telehealth.Platform.Infrastructure.Persistence;
 
 namespace Telehealth.Platform.Api.Support;
 
 /// <summary>
-/// Support and disputes API endpoints.
+/// Support ticket API endpoints — wired to real DB (support_tickets table).
 /// </summary>
 public static class SupportEndpoints
 {
@@ -13,14 +15,12 @@ public static class SupportEndpoints
     {
         var support = app.MapGroup("/support").WithTags("Support and Disputes");
 
-        // User endpoints
         support.MapGet("/my-tickets", GetMyTicketsAsync).RequireAuthorization();
         support.MapPost("/tickets", CreateTicketAsync).RequireAuthorization();
         support.MapGet("/tickets/{ticketId}", GetTicketAsync).RequireAuthorization();
         support.MapPost("/tickets/{ticketId}/reply", ReplyToTicketAsync).RequireAuthorization();
         support.MapPost("/tickets/{ticketId}/close", CloseTicketAsync).RequireAuthorization();
 
-        // Support agent endpoints
         support.MapGet("/agent/tickets", GetAllTicketsAsync).RequireAuthorization("RequireSupportAgent");
         support.MapPost("/agent/tickets/{ticketId}/assign", AssignTicketAsync).RequireAuthorization("RequireSupportAgent");
         support.MapPost("/agent/tickets/{ticketId}/resolve", ResolveTicketAsync).RequireAuthorization("RequireSupportAgent");
@@ -31,279 +31,235 @@ public static class SupportEndpoints
 
     private static async Task<IResult> GetMyTicketsAsync(
         ClaimsPrincipal user,
+        PlatformDbContext db,
         string? status)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userId.HasValue) return Results.Unauthorized();
 
-        var tickets = new List<TicketSummaryDto>
-        {
-            new(
-                Guid.NewGuid(),
-                "TIC-20240115-A1B2C3",
-                "Billing Dispute",
-                "Incorrect charge on my last consultation",
-                TicketStatus.InProgress,
-                TicketPriority.High,
-                DateTimeOffset.UtcNow.AddDays(-3),
-                "Support Agent")
-        };
+        var query = db.SupportTickets.Where(t => t.UserId == userId.Value);
+
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<TicketStatus>(status, out var parsedStatus))
+            query = query.Where(t => t.Status == parsedStatus);
+
+        var tickets = await query
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(t => new TicketSummaryDto(
+                t.Id, t.TicketNumber, t.Subject, t.Description,
+                t.Status, t.Priority, t.CreatedAt, t.AssignedToName))
+            .ToListAsync();
 
         return Results.Ok(new { Items = tickets, TotalCount = tickets.Count });
     }
 
     private static async Task<IResult> CreateTicketAsync(
         CreateTicketRequestDto request,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        PlatformDbContext db)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userId.HasValue) return Results.Unauthorized();
 
-        var ticket = new TicketDetailDto(
+        var userType = user.FindFirst("user_type")?.Value ?? "Patient";
+        var now = DateTimeOffset.UtcNow;
+
+        var ticket = new SupportTicket(
             Guid.NewGuid(),
-            "TIC-20240115-" + Guid.NewGuid().ToString()[..6].ToUpper(),
+            userId.Value,
+            userType,
             request.Category,
             request.Subject,
             request.Description,
-            TicketStatus.Open,
             request.Priority,
-            null,
-            null,
             request.RelatedConsultationId,
             request.RelatedBillingId,
-            DateTimeOffset.UtcNow,
-            new List<TicketCommentDto>());
+            now);
 
-        return Results.Created($"/support/tickets/{ticket.Id}", ticket);
+        db.SupportTickets.Add(ticket);
+        await db.SaveChangesAsync();
+
+        return Results.Created($"/support/tickets/{ticket.Id}", new
+        {
+            Message = "Ticket created",
+            TicketId = ticket.Id,
+            TicketNumber = ticket.TicketNumber,
+            Status = ticket.Status.ToString()
+        });
     }
 
     private static async Task<IResult> GetTicketAsync(
         Guid ticketId,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        PlatformDbContext db)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userId.HasValue) return Results.Unauthorized();
 
-        var ticket = new TicketDetailDto(
-            ticketId,
-            "TIC-20240115-A1B2C3",
-            "Billing Dispute",
-            "Incorrect charge on my last consultation",
-            "I was charged 50 EUR for a consultation that only lasted 5 minutes instead of 30.",
-            TicketStatus.InProgress,
-            TicketPriority.High,
-            Guid.NewGuid(),
-            "Support Agent Sarah",
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            DateTimeOffset.UtcNow.AddDays(-3),
-            new List<TicketCommentDto>
-            {
-                new(
-                    Guid.NewGuid(),
-                    "Patient",
-                    "I was charged 50 EUR for a consultation that only lasted 5 minutes instead of 30.",
-                    false,
-                    DateTimeOffset.UtcNow.AddDays(-3)),
-                new(
-                    Guid.NewGuid(),
-                    "Support Agent",
-                    "Thank you for reporting this. I'm investigating your billing issue and will get back to you within 24 hours.",
-                    false,
-                    DateTimeOffset.UtcNow.AddDays(-2))
-            });
+        var ticket = await db.SupportTickets.FindAsync(ticketId);
+        if (ticket is null) return Results.NotFound(new { Message = "Ticket not found." });
+        if (ticket.UserId != userId.Value) return Results.Forbid();
 
-        return Results.Ok(ticket);
+        var comments = await db.TicketComments
+            .Where(c => c.TicketId == ticketId && !c.IsInternal)
+            .OrderBy(c => c.CreatedAt)
+            .Select(c => new TicketCommentDto(c.Id, c.AuthorId, c.AuthorType, c.AuthorName, c.Content, c.CreatedAt))
+            .ToListAsync();
+
+        return Results.Ok(new TicketDetailDto(
+            ticket.Id, ticket.TicketNumber, ticket.Subject, ticket.Description,
+            ticket.Category, ticket.Status, ticket.Priority,
+            ticket.AssignedToName, ticket.Resolution,
+            ticket.CreatedAt, ticket.UpdatedAt, comments));
     }
 
     private static async Task<IResult> ReplyToTicketAsync(
         Guid ticketId,
         ReplyToTicketRequestDto request,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        PlatformDbContext db)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userId.HasValue) return Results.Unauthorized();
 
-        return Results.Ok(new
-        {
-            TicketId = ticketId,
-            Message = "Reply added successfully",
-            RepliedAt = DateTimeOffset.UtcNow
-        });
+        var ticket = await db.SupportTickets.FindAsync(ticketId);
+        if (ticket is null) return Results.NotFound(new { Message = "Ticket not found." });
+        if (ticket.UserId != userId.Value) return Results.Forbid();
+
+        var userType = user.FindFirst("user_type")?.Value ?? "Patient";
+        var displayName = user.FindFirst("name")?.Value ?? userId.Value.ToString();
+        var now = DateTimeOffset.UtcNow;
+
+        var comment = new TicketComment(
+            Guid.NewGuid(), ticketId, userId.Value, userType, displayName,
+            request.Message, isInternal: false, null, now);
+
+        db.TicketComments.Add(comment);
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { Message = "Reply added", CommentId = comment.Id });
     }
 
     private static async Task<IResult> CloseTicketAsync(
         Guid ticketId,
-        CloseTicketRequestDto request,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        PlatformDbContext db)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userId.HasValue) return Results.Unauthorized();
 
-        return Results.Ok(new
-        {
-            TicketId = ticketId,
-            Status = TicketStatus.Closed,
-            Reason = request.Reason,
-            ClosedAt = DateTimeOffset.UtcNow
-        });
+        var ticket = await db.SupportTickets.FindAsync(ticketId);
+        if (ticket is null) return Results.NotFound(new { Message = "Ticket not found." });
+        if (ticket.UserId != userId.Value) return Results.Forbid();
+
+        ticket.Close(null, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { Message = "Ticket closed", TicketId = ticketId });
     }
 
+    // Agent endpoints
     private static async Task<IResult> GetAllTicketsAsync(
+        PlatformDbContext db,
         string? status,
         string? priority,
-        Guid? assignedTo,
-        int? page,
-        int? pageSize)
+        int page = 1,
+        int pageSize = 50)
     {
-        var tickets = new List<AgentTicketDto>
-        {
-            new(
-                Guid.NewGuid(),
-                "TIC-20240115-A1B2C3",
-                "john.doe@example.com",
-                "Billing Dispute",
-                "Incorrect charge",
-                TicketStatus.Open,
-                TicketPriority.High,
-                null,
-                DateTimeOffset.UtcNow.AddHours(-2))
-        };
+        var query = db.SupportTickets.AsQueryable();
 
-        return Results.Ok(new { Items = tickets, TotalCount = tickets.Count });
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<TicketStatus>(status, out var s))
+            query = query.Where(t => t.Status == s);
+        if (!string.IsNullOrEmpty(priority) && Enum.TryParse<TicketPriority>(priority, out var p))
+            query = query.Where(t => t.Priority == p);
+
+        var total = await query.CountAsync();
+        var tickets = await query
+            .OrderByDescending(t => t.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(t => new TicketSummaryDto(
+                t.Id, t.TicketNumber, t.Subject, t.Description,
+                t.Status, t.Priority, t.CreatedAt, t.AssignedToName))
+            .ToListAsync();
+
+        return Results.Ok(new { Items = tickets, TotalCount = total, Page = page, PageSize = pageSize });
     }
 
     private static async Task<IResult> AssignTicketAsync(
         Guid ticketId,
-        AssignTicketRequestDto request)
+        AssignTicketRequestDto request,
+        ClaimsPrincipal user,
+        PlatformDbContext db)
     {
-        return Results.Ok(new
-        {
-            TicketId = ticketId,
-            AssignedTo = request.AgentId,
-            AssignedToName = request.AgentName,
-            AssignedAt = DateTimeOffset.UtcNow,
-            Status = TicketStatus.InProgress
-        });
+        var ticket = await db.SupportTickets.FindAsync(ticketId);
+        if (ticket is null) return Results.NotFound(new { Message = "Ticket not found." });
+
+        var agentId = GetUserId(user) ?? Guid.Empty;
+        var agentName = user.FindFirst("name")?.Value ?? agentId.ToString();
+        ticket.Assign(agentId, agentName, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { Message = "Ticket assigned", TicketId = ticketId, AgentName = agentName });
     }
 
     private static async Task<IResult> ResolveTicketAsync(
         Guid ticketId,
-        ResolveTicketRequestDto request)
+        ResolveTicketRequestDto request,
+        PlatformDbContext db)
     {
-        return Results.Ok(new
-        {
-            TicketId = ticketId,
-            Status = TicketStatus.Resolved,
-            Resolution = request.Resolution,
-            RefundAmount = request.RefundAmount,
-            ResolvedAt = DateTimeOffset.UtcNow
-        });
+        var ticket = await db.SupportTickets.FindAsync(ticketId);
+        if (ticket is null) return Results.NotFound(new { Message = "Ticket not found." });
+
+        ticket.Resolve(request.Resolution, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { Message = "Ticket resolved", TicketId = ticketId });
     }
 
     private static async Task<IResult> EscalateTicketAsync(
         Guid ticketId,
-        EscalateTicketRequestDto request)
+        EscalateTicketRequestDto request,
+        PlatformDbContext db)
     {
-        return Results.Ok(new
-        {
-            TicketId = ticketId,
-            NewPriority = request.NewPriority,
-            Reason = request.Reason,
-            EscalatedAt = DateTimeOffset.UtcNow
-        });
+        var ticket = await db.SupportTickets.FindAsync(ticketId);
+        if (ticket is null) return Results.NotFound(new { Message = "Ticket not found." });
+
+        ticket.Escalate(request.NewPriority, request.Reason, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { Message = "Ticket escalated", TicketId = ticketId, NewPriority = request.NewPriority.ToString() });
     }
 
     private static Guid? GetUserId(ClaimsPrincipal user)
     {
-        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? user.FindFirst("sub")?.Value;
-
-        if (Guid.TryParse(userIdClaim, out var userId))
-        {
-            return userId;
-        }
-
-        return null;
+        var raw = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(raw, out var id) ? id : null;
     }
 }
 
 // DTOs
 public record TicketSummaryDto(
-    Guid Id,
-    string TicketNumber,
-    string Category,
-    string Subject,
-    TicketStatus Status,
-    TicketPriority Priority,
-    DateTimeOffset CreatedAt,
-    string? AssignedTo);
+    Guid Id, string TicketNumber, string Subject, string Description,
+    TicketStatus Status, TicketPriority Priority,
+    DateTimeOffset CreatedAt, string? AssignedTo);
 
 public record TicketDetailDto(
-    Guid Id,
-    string TicketNumber,
-    string Category,
-    string Subject,
-    string Description,
-    TicketStatus Status,
-    TicketPriority Priority,
-    Guid? AssignedTo,
-    string? AssignedToName,
-    Guid? RelatedConsultationId,
-    Guid? RelatedBillingId,
-    DateTimeOffset CreatedAt,
+    Guid Id, string TicketNumber, string Subject, string Description,
+    string Category, TicketStatus Status, TicketPriority Priority,
+    string? AssignedTo, string? Resolution,
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
     List<TicketCommentDto> Comments);
 
 public record TicketCommentDto(
-    Guid Id,
-    string AuthorType,
-    string Content,
-    bool IsInternal,
-    DateTimeOffset CreatedAt);
+    Guid Id, Guid AuthorId, string AuthorType, string AuthorName,
+    string Content, DateTimeOffset CreatedAt);
 
 public record CreateTicketRequestDto(
-    string Category,
-    string Subject,
-    string Description,
+    string Category, string Subject, string Description,
     TicketPriority Priority,
-    Guid? RelatedConsultationId,
-    Guid? RelatedBillingId);
+    Guid? RelatedConsultationId, Guid? RelatedBillingId);
 
-public record ReplyToTicketRequestDto(string Content, List<string>? Attachments);
-
-public record CloseTicketRequestDto(string? Reason);
-
-public record AgentTicketDto(
-    Guid Id,
-    string TicketNumber,
-    string UserEmail,
-    string Category,
-    string Subject,
-    TicketStatus Status,
-    TicketPriority Priority,
-    Guid? AssignedTo,
-    DateTimeOffset CreatedAt);
-
-public record AssignTicketRequestDto(Guid AgentId, string AgentName);
-
-public record ResolveTicketRequestDto(
-    string Resolution,
-    decimal? RefundAmount,
-    string? RefundReason);
-
+public record ReplyToTicketRequestDto(string Message);
+public record AssignTicketRequestDto(Guid? AgentId);
+public record ResolveTicketRequestDto(string Resolution);
 public record EscalateTicketRequestDto(TicketPriority NewPriority, string Reason);

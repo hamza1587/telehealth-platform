@@ -1,24 +1,29 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using Telehealth.Platform.Domain.Wallets;
+using Telehealth.Platform.Application.Abstractions.Wallets;
+using Telehealth.Platform.Domain.Financial;
+using Telehealth.Platform.Infrastructure.Persistence;
 
 namespace Telehealth.Platform.Api.Wallets;
 
 /// <summary>
 /// Credit wallet and day pass API endpoints.
+/// The wallet stores consultation time in seconds; 60 seconds = 1 credit minute (displayed as EUR equivalent).
 /// </summary>
 public static class WalletEndpoints
 {
+    // 1 EUR = 60 consultation seconds (1 minute per EUR)
+    private const decimal SecondsPerEur = 60m;
+
     public static IEndpointRouteBuilder MapWalletEndpoints(this IEndpointRouteBuilder app)
     {
         var wallets = app.MapGroup("/wallets").WithTags("Wallets");
 
-        // Wallet management
         wallets.MapGet("/my-wallet", GetMyWalletAsync).RequireAuthorization("RequirePatient");
         wallets.MapGet("/my-wallet/transactions", GetMyTransactionsAsync).RequireAuthorization("RequirePatient");
         wallets.MapPost("/my-wallet/deposit", DepositAsync).RequireAuthorization("RequirePatient");
 
-        // Day pass management
         wallets.MapGet("/day-passes/available", GetAvailableDayPassesAsync).RequireAuthorization();
         wallets.MapGet("/my-day-passes", GetMyDayPassesAsync).RequireAuthorization("RequirePatient");
         wallets.MapPost("/day-passes/purchase", PurchaseDayPassAsync).RequireAuthorization("RequirePatient");
@@ -28,188 +33,160 @@ public static class WalletEndpoints
     }
 
     private static async Task<IResult> GetMyWalletAsync(
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        IWalletService walletService)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
+        if (!userId.HasValue) return Results.Unauthorized();
+
+        Wallet wallet;
+        try
         {
-            return Results.Unauthorized();
+            wallet = await walletService.GetWalletAsync(userId.Value);
+        }
+        catch (InvalidOperationException)
+        {
+            // Create wallet on first access
+            wallet = await walletService.CreateWalletAsync(userId.Value);
         }
 
-        var wallet = new WalletDto(
-            Guid.NewGuid(),
-            userId.Value,
-            250.00m,
+        var balanceEur = wallet.AvailableSeconds / SecondsPerEur;
+        var dto = new WalletDto(
+            wallet.Id,
+            wallet.PatientAccountId,
+            balanceEur,
             "EUR",
-            1250.00m,
-            1000.00m,
-            true,
-            DateTimeOffset.UtcNow.AddMonths(-6));
+            wallet.AvailableSeconds,
+            wallet.Status == WalletStatus.Active,
+            wallet.CreatedAt);
 
-        return Results.Ok(wallet);
+        return Results.Ok(dto);
     }
 
     private static async Task<IResult> GetMyTransactionsAsync(
         ClaimsPrincipal user,
+        PlatformDbContext db,
         string? type,
         DateTimeOffset? from,
         DateTimeOffset? to,
-        int? page,
-        int? pageSize)
+        int page = 1,
+        int pageSize = 20)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userId.HasValue) return Results.Unauthorized();
 
-        var transactions = new List<WalletTransactionDto>
-        {
-            new(
-                Guid.NewGuid(),
-                TransactionType.Deposit,
-                100.00m,
-                "EUR",
-                350.00m,
-                "Credit card deposit",
-                "txn_12345",
-                TransactionStatus.Completed,
-                DateTimeOffset.UtcNow.AddDays(-5)),
-            new(
-                Guid.NewGuid(),
-                TransactionType.Spend,
-                -45.00m,
-                "EUR",
-                250.00m,
-                "Consultation with Dr. Smith",
-                "cons_67890",
-                TransactionStatus.Completed,
-                DateTimeOffset.UtcNow.AddDays(-2))
-        };
+        var wallet = await db.Wallets.FirstOrDefaultAsync(w => w.PatientAccountId == userId.Value);
+        if (wallet is null) return Results.Ok(new { Items = Array.Empty<object>(), TotalCount = 0 });
 
-        return Results.Ok(new { Items = transactions, TotalCount = transactions.Count });
+        var query = db.WalletLedgerEntries
+            .Where(e => e.WalletId == wallet.Id);
+
+        if (from.HasValue) query = query.Where(e => e.CreatedAt >= from.Value);
+        if (to.HasValue) query = query.Where(e => e.CreatedAt <= to.Value);
+        if (!string.IsNullOrEmpty(type)) query = query.Where(e => e.EntryType == type);
+
+        var totalCount = await query.CountAsync();
+        var entries = await query
+            .OrderByDescending(e => e.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var items = entries.Select(e => new WalletTransactionDto(
+            e.Id,
+            e.EntryType,
+            e.SecondsDelta / SecondsPerEur,
+            "EUR",
+            e.BalanceAfterSeconds / SecondsPerEur,
+            e.Reason,
+            e.ReferenceId,
+            e.CreatedAt));
+
+        return Results.Ok(new { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize });
     }
 
     private static async Task<IResult> DepositAsync(
         DepositRequestDto request,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        IWalletService walletService)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userId.HasValue) return Results.Unauthorized();
 
-        var transaction = new WalletTransactionDto(
-            Guid.NewGuid(),
-            TransactionType.Deposit,
-            request.Amount,
-            request.Currency,
-            350.00m,
-            $"Deposit via {request.PaymentMethod}",
-            Guid.NewGuid().ToString(),
-            TransactionStatus.Completed,
-            DateTimeOffset.UtcNow);
+        if (request.Amount <= 0) return Results.BadRequest("Amount must be positive.");
+
+        // Ensure wallet exists
+        try { await walletService.GetWalletAsync(userId.Value); }
+        catch (InvalidOperationException) { await walletService.CreateWalletAsync(userId.Value); }
+
+        // 1 EUR = 60 seconds; AddCreditAsync expects amountMinor where it internally does /100 to get seconds
+        var secondsToAdd = (long)(request.Amount * SecondsPerEur);
+        var wallet = await walletService.AddCreditAsync(userId.Value, secondsToAdd * 100);
 
         return Results.Ok(new
         {
             Message = "Deposit processed",
-            Transaction = transaction,
-            NewBalance = 350.00m
+            NewBalance = wallet.AvailableSeconds / SecondsPerEur,
+            Currency = "EUR",
+            CreditsAdded = secondsToAdd
         });
     }
 
-    private static async Task<IResult> GetAvailableDayPassesAsync()
+    private static IResult GetAvailableDayPassesAsync()
     {
-        var passes = new List<DayPassOptionDto>
+        var passes = new[]
         {
-            new(
-                "basic_24h",
-                "Basic 24-Hour Pass",
-                "Unlimited consultations for 24 hours",
-                24,
-                49.99m,
-                "EUR",
-                5,
-                false,
-                new List<string> { "General Practice", "Mental Health" }),
-            new(
-                "premium_24h",
-                "Premium 24-Hour Pass",
-                "Unlimited consultations including specialists",
-                24,
-                79.99m,
-                "EUR",
-                10,
-                false,
-                new List<string> { "General Practice", "Mental Health", "Cardiology", "Dermatology", "Pediatrics" }),
-            new(
-                "unlimited_day",
-                "Unlimited Day Pass",
-                "True unlimited consultations for 24 hours",
-                24,
-                149.99m,
-                "EUR",
-                int.MaxValue,
-                true,
-                new List<string> { "All Specialties" })
+            new DayPassOptionDto("basic_24h", "Basic 24-Hour Pass", "Unlimited consultations for 24 hours",
+                24, 49.99m, "EUR", 5, false, ["General Practice", "Mental Health"]),
+            new DayPassOptionDto("premium_24h", "Premium 24-Hour Pass", "Unlimited consultations including specialists",
+                24, 79.99m, "EUR", 10, false, ["General Practice", "Mental Health", "Cardiology", "Dermatology", "Pediatrics"]),
+            new DayPassOptionDto("unlimited_day", "Unlimited Day Pass", "True unlimited consultations for 24 hours",
+                24, 149.99m, "EUR", int.MaxValue, true, ["All Specialties"])
         };
-
         return Results.Ok(passes);
     }
 
     private static async Task<IResult> GetMyDayPassesAsync(
         ClaimsPrincipal user,
+        PlatformDbContext db,
         string? status)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userId.HasValue) return Results.Unauthorized();
 
-        var passes = new List<PatientDayPassDto>
-        {
-            new(
-                Guid.NewGuid(),
-                "Premium 24-Hour Pass",
-                DayPassStatus.Active,
-                DateTimeOffset.UtcNow.AddHours(-2),
-                DateTimeOffset.UtcNow.AddHours(22),
-                10,
-                2,
-                true,
-                22 * 60)
-        };
+        // Day passes are stored as WalletPayments referencing day pass products
+        var wallet = await db.Wallets.FirstOrDefaultAsync(w => w.PatientAccountId == userId.Value);
+        if (wallet is null) return Results.Ok(new { Items = Array.Empty<object>(), TotalCount = 0 });
 
-        return Results.Ok(new { Items = passes, TotalCount = passes.Count });
+        var payments = await db.WalletPayments
+            .Where(p => p.WalletId == wallet.Id)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        return Results.Ok(new { Items = payments, TotalCount = payments.Count });
     }
 
     private static async Task<IResult> PurchaseDayPassAsync(
         PurchaseDayPassRequestDto request,
-        ClaimsPrincipal user)
+        ClaimsPrincipal user,
+        IWalletService walletService,
+        PlatformDbContext db)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userId.HasValue) return Results.Unauthorized();
 
-        var dayPass = new PatientDayPassDto(
-            Guid.NewGuid(),
-            request.PassType,
-            DayPassStatus.Active,
-            DateTimeOffset.UtcNow,
-            DateTimeOffset.UtcNow.AddHours(request.DurationHours),
-            request.MaxConsultations,
-            0,
-            true,
-            request.DurationHours * 60);
+        // Deduct from wallet
+        var priceSeconds = (long)(request.Price * SecondsPerEur);
+        var deducted = await walletService.DeductCreditAsync(userId.Value, priceSeconds * 100);
+        if (!deducted)
+            return Results.UnprocessableEntity(new { Message = "Insufficient wallet balance to purchase day pass." });
 
         return Results.Ok(new
         {
             Message = "Day pass purchased successfully",
-            DayPass = dayPass,
+            PassType = request.PassType,
+            ActivatedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddHours(request.DurationHours),
             Charged = new MoneyDto(request.Price, request.Currency)
         });
     }
@@ -219,42 +196,15 @@ public static class WalletEndpoints
         ClaimsPrincipal user)
     {
         var userId = GetUserId(user);
-        if (!userId.HasValue)
-        {
-            return Results.Unauthorized();
-        }
+        if (!userId.HasValue) return Results.Unauthorized();
 
-        var dayPass = new DayPassDetailDto(
-            dayPassId,
-            "Premium 24-Hour Pass",
-            DayPassStatus.Active,
-            DateTimeOffset.UtcNow.AddHours(-2),
-            DateTimeOffset.UtcNow.AddHours(22),
-            79.99m,
-            "EUR",
-            10,
-            false,
-            2,
-            new List<string> { "General Practice", "Mental Health", "Cardiology", "Dermatology", "Pediatrics" },
-            new List<DayPassUsageDto>
-            {
-                new(Guid.NewGuid(), "Dr. Jane Smith", "Cardiology", DateTimeOffset.UtcNow.AddHours(-1), 30)
-            });
-
-        return Results.Ok(dayPass);
+        return Results.NotFound(new { Message = "Day pass not found." });
     }
 
     private static Guid? GetUserId(ClaimsPrincipal user)
     {
-        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? user.FindFirst("sub")?.Value;
-
-        if (Guid.TryParse(userIdClaim, out var userId))
-        {
-            return userId;
-        }
-
-        return null;
+        var raw = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value;
+        return Guid.TryParse(raw, out var id) ? id : null;
     }
 }
 
@@ -264,28 +214,23 @@ public record MoneyDto(decimal Amount, string Currency);
 public record WalletDto(
     Guid Id,
     Guid PatientAccountId,
-    decimal Balance,
+    decimal BalanceEur,
     string Currency,
-    decimal TotalDeposited,
-    decimal TotalSpent,
+    long AvailableSeconds,
     bool IsActive,
     DateTimeOffset CreatedAt);
 
 public record WalletTransactionDto(
     Guid Id,
-    TransactionType Type,
-    decimal Amount,
+    string EntryType,
+    decimal AmountEur,
     string Currency,
-    decimal BalanceAfter,
+    decimal BalanceAfterEur,
     string? Description,
     string? ReferenceId,
-    TransactionStatus Status,
     DateTimeOffset CreatedAt);
 
-public record DepositRequestDto(
-    decimal Amount,
-    string Currency,
-    string PaymentMethod);
+public record DepositRequestDto(decimal Amount, string Currency, string PaymentMethod);
 
 public record DayPassOptionDto(
     string Id,
@@ -298,17 +243,6 @@ public record DayPassOptionDto(
     bool IsUnlimited,
     List<string> IncludedSpecialties);
 
-public record PatientDayPassDto(
-    Guid Id,
-    string PassType,
-    DayPassStatus Status,
-    DateTimeOffset ActivatedAt,
-    DateTimeOffset ExpiresAt,
-    int MaxConsultations,
-    int ConsultationsUsed,
-    bool IsValid,
-    int MinutesRemaining);
-
 public record PurchaseDayPassRequestDto(
     string PassType,
     int DurationHours,
@@ -316,24 +250,3 @@ public record PurchaseDayPassRequestDto(
     string Currency,
     int MaxConsultations,
     string PaymentMethod);
-
-public record DayPassDetailDto(
-    Guid Id,
-    string PassType,
-    DayPassStatus Status,
-    DateTimeOffset ActivatedAt,
-    DateTimeOffset ExpiresAt,
-    decimal Price,
-    string Currency,
-    int MaxConsultations,
-    bool IsUnlimited,
-    int ConsultationsUsed,
-    List<string> IncludedSpecialties,
-    List<DayPassUsageDto> UsageHistory);
-
-public record DayPassUsageDto(
-    Guid ConsultationId,
-    string DoctorName,
-    string Specialty,
-    DateTimeOffset UsedAt,
-    int DurationMinutes);

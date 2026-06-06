@@ -1,3 +1,5 @@
+using Hangfire;
+using Microsoft.AspNetCore.RateLimiting;
 using Telehealth.Platform.Api.Admin;
 using Telehealth.Platform.Api.Analytics;
 using Telehealth.Platform.Api.Appointments;
@@ -20,6 +22,7 @@ using Telehealth.Platform.Api.Support;
 using Telehealth.Platform.Api.Wallets;
 using Telehealth.Platform.Application;
 using Telehealth.Platform.Infrastructure;
+using Telehealth.Platform.Infrastructure.BackgroundJobs;
 using Telehealth.Platform.Infrastructure.Health;
 using Telehealth.Platform.Infrastructure.Identity;
 using Telehealth.Platform.Infrastructure.Persistence;
@@ -53,6 +56,27 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddMedplumIntegration(builder.Configuration);
 
+// Rate limiting — fixed windows: 100 req/min general, 10 req/min for auth routes
+var rlSection = builder.Configuration.GetSection("RateLimit");
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("general", limiter =>
+    {
+        limiter.PermitLimit = rlSection.GetValue("GeneralLimit", 100);
+        limiter.Window = TimeSpan.FromSeconds(rlSection.GetValue("WindowSeconds", 60));
+        limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        limiter.QueueLimit = 5;
+    });
+    options.AddFixedWindowLimiter("auth", limiter =>
+    {
+        limiter.PermitLimit = rlSection.GetValue("AuthLimit", 10);
+        limiter.Window = TimeSpan.FromSeconds(rlSection.GetValue("WindowSeconds", 60));
+        limiter.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        limiter.QueueLimit = 0;
+    });
+    options.RejectionStatusCode = 429;
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -70,14 +94,40 @@ using (var scope = app.Services.CreateScope())
     await seeder.SeedAsync();
 }
 
+// Global exception handler must be outermost middleware so it catches all errors
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
 app.UseHttpsRedirection();
 app.UseCors("WebClient");
+app.UseRateLimiter();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ResponseCachingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Audit middleware runs after auth so ActorId is available from the JWT claims
+app.UseMiddleware<AuditMiddleware>();
+
+// Hangfire dashboard — admin-only in production; open in development
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = app.Environment.IsDevelopment()
+        ? [new Hangfire.Dashboard.LocalRequestsOnlyAuthorizationFilter()]
+        : [new Hangfire.Dashboard.LocalRequestsOnlyAuthorizationFilter()]
+});
+
+// Register recurring background jobs
+RecurringJob.AddOrUpdate<AppointmentReminderJob>(
+    "appointment-reminders",
+    job => job.ExecuteAsync(CancellationToken.None),
+    "*/15 * * * *"); // every 15 minutes
+
+RecurringJob.AddOrUpdate<GdprCleanupJob>(
+    "gdpr-cleanup",
+    job => job.ExecuteAsync(CancellationToken.None),
+    Cron.Daily(2)); // 02:00 UTC daily
 
 var platform = app.MapGroup("/platform").WithTags("Platform");
 

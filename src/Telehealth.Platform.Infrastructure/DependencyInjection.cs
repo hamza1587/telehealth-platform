@@ -1,3 +1,5 @@
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +27,7 @@ using Telehealth.Platform.Application.Abstractions.Wallets;
 using Telehealth.Platform.Application.Abstractions.Payments;
 using Telehealth.Platform.Infrastructure.Analytics;
 using Telehealth.Platform.Infrastructure.AI;
+using Telehealth.Platform.Infrastructure.BackgroundJobs;
 using Telehealth.Platform.Infrastructure.Billing;
 using Telehealth.Platform.Infrastructure.Clinical;
 using Telehealth.Platform.Infrastructure.Consultations;
@@ -32,6 +35,7 @@ using Telehealth.Platform.Infrastructure.Doctors;
 using Telehealth.Platform.Infrastructure.EHR;
 using Telehealth.Platform.Infrastructure.Health;
 using Telehealth.Platform.Infrastructure.Identity;
+using Telehealth.Platform.Infrastructure.Notifications;
 using Telehealth.Platform.Infrastructure.Patients;
 using Telehealth.Platform.Infrastructure.Pharmacy;
 using Telehealth.Platform.Infrastructure.Persistence;
@@ -41,7 +45,6 @@ using Telehealth.Platform.Infrastructure.Tenancy;
 using Telehealth.Platform.Infrastructure.Time;
 using Telehealth.Platform.Infrastructure.Wallets;
 using Telehealth.Platform.Infrastructure.Payments;
-using Telehealth.Platform.Infrastructure.Notifications;
 
 namespace Telehealth.Platform.Infrastructure;
 
@@ -55,14 +58,11 @@ public static class DependencyInjection
         services.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(connectionString));
         services.AddSingleton<IClock, SystemClock>();
 
-        // Register distributed cache for caching service
         services.AddDistributedMemoryCache();
 
-        // Register health check as scoped (not singleton)
         services.AddScoped<DatabaseHealthCheck>();
         services.Configure<RedisOptions>(configuration.GetSection(RedisOptions.SectionName));
 
-        // Register Redis if enabled
         var redisOptions = configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>();
         if (redisOptions?.Enabled ?? false)
         {
@@ -74,11 +74,10 @@ public static class DependencyInjection
         services.AddScoped<IDeviceManagementService, DeviceManagementService>();
         services.AddScoped<IConsentService, Identity.ConsentService>();
 
-        // Configure JWT settings
+        // JWT / Authentication
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
         var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>() ?? new JwtSettings();
 
-        // Add Authentication
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
@@ -101,46 +100,39 @@ public static class DependencyInjection
                     OnAuthenticationFailed = context =>
                     {
                         if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-                        {
                             context.Response.Headers["Token-Expired"] = "true";
-                        }
                         return Task.CompletedTask;
                     }
                 };
             });
 
-        // Add Authorization
+        // Authorization policies
         services.AddAuthorization(options =>
         {
-            // Define policies based on user types
             options.AddPolicy("RequirePatient", policy =>
-                policy.RequireAuthenticatedUser()
-                      .RequireClaim("user_type", "Patient"));
+                policy.RequireAuthenticatedUser().RequireClaim("user_type", "Patient"));
 
             options.AddPolicy("RequireDoctor", policy =>
-                policy.RequireAuthenticatedUser()
-                      .RequireClaim("user_type", "Doctor"));
+                policy.RequireAuthenticatedUser().RequireClaim("user_type", "Doctor"));
 
             options.AddPolicy("RequireAdmin", policy =>
-                policy.RequireAuthenticatedUser()
-                      .RequireClaim("user_type", "Admin"));
+                policy.RequireAuthenticatedUser().RequireClaim("user_type", "Admin"));
 
             options.AddPolicy("RequireCompliance", policy =>
-                policy.RequireAuthenticatedUser()
-                      .RequireClaim("user_type", "ComplianceOfficer"));
+                policy.RequireAuthenticatedUser().RequireClaim("user_type", "ComplianceOfficer"));
 
-            // MFA-required policy for sensitive operations
+            options.AddPolicy("RequireSupportAgent", policy =>
+                policy.RequireAuthenticatedUser()
+                      .RequireClaim("user_type", "SupportAgent", "Admin"));
+
             options.AddPolicy("RequireMfa", policy =>
-                policy.RequireAuthenticatedUser()
-                      .RequireClaim("mfa_enabled", "True"));
+                policy.RequireAuthenticatedUser().RequireClaim("mfa_enabled", "True"));
 
-            // Break-glass emergency access policy
             options.AddPolicy("BreakGlassAccess", policy =>
-                policy.RequireAuthenticatedUser()
-                      .RequireRole("BreakGlass"));
+                policy.RequireAuthenticatedUser().RequireRole("BreakGlass"));
         });
 
-        // Register Identity Services
+        // Identity Services
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, TokenService>();
@@ -149,73 +141,72 @@ public static class DependencyInjection
         services.AddScoped<IUserDeviceService, UserDeviceService>();
         services.AddScoped<IUserSessionService, UserSessionService>();
 
-        // Register Patient Services
+        // Patient & Doctor Services
         services.AddScoped<IPatientOnboardingService, PatientOnboardingService>();
         services.AddScoped<IPatientAccountService, PatientAccountService>();
-
-        // Register Doctor Services
         services.AddScoped<IDoctorProfileService, DoctorProfileService>();
 
-        // Register Consultation Services
+        // Consultation Services
         services.AddScoped<IVideoRoomService, VideoRoomService>();
         services.AddScoped<ITeleconsultationService, TeleconsultationService>();
         services.AddScoped<IVideoIntegrationService, JitsiVideoIntegrationService>();
-
-        // Register IOptions for Jitsi configuration
         services.Configure<JitsiOptions>(configuration.GetSection(JitsiOptions.SectionName));
 
-        // Register Clinical Services
+        // Clinical, Billing, Analytics, Wallet
         services.AddScoped<IClinicalRecordService, ClinicalRecordService>();
-
-        // Register Billing Services
         services.AddScoped<IInsuranceProviderService, InsuranceProviderService>();
         services.AddScoped<IPatientInsuranceService, PatientInsuranceService>();
-
-        // Register Analytics Services
         services.AddScoped<IAnalyticsService, AnalyticsService>();
-
-        // Register Wallet Services
         services.AddScoped<IWalletService, WalletService>();
 
-        // Register Payment Gateway Services
-        services.AddScoped<Application.Abstractions.Payments.IPaymentGateway, Payments.StripePaymentGateway>();
+        // Stripe: use AddHttpClient so StripePaymentGateway receives a managed HttpClient
+        services.AddHttpClient<StripePaymentGateway>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.stripe.com/");
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+        });
+        services.AddScoped<Application.Abstractions.Payments.IPaymentGateway>(
+            sp => sp.GetRequiredService<StripePaymentGateway>());
         services.AddScoped<Application.Abstractions.Payments.ITokenizationService, Payments.TokenizationService>();
         services.AddScoped<Application.Abstractions.Payments.IPciComplianceService, Payments.PciComplianceService>();
-        services.Configure<Payments.StripePaymentGatewayOptions>(
-            configuration.GetSection("PaymentGateways:Stripe"));
-        services.Configure<Payments.TokenizationServiceOptions>(
-            configuration.GetSection("Tokenization"));
-        services.Configure<Payments.PciComplianceServiceOptions>(
-            configuration.GetSection("PciCompliance"));
+        services.Configure<Payments.StripePaymentGatewayOptions>(configuration.GetSection("PaymentGateways:Stripe"));
+        services.Configure<Payments.TokenizationServiceOptions>(configuration.GetSection("Tokenization"));
+        services.Configure<Payments.PciComplianceServiceOptions>(configuration.GetSection("PciCompliance"));
 
-        // Register Review Services
+        // Review, AI, EHR, Pharmacy, Tenancy
         services.AddScoped<IReviewService, ReviewService>();
-
-        // Register AI Services
         services.AddScoped<IDiagnosticService, DiagnosticService>();
-
-        // Register EHR Services
         services.AddScoped<IFhirService, FhirService>();
-
-        // Register Pharmacy Services
         services.AddScoped<IDrugInteractionService, DrugInteractionService>();
-
-        // Register Tenancy Services
         services.AddScoped<ITenantService, TenantService>();
 
-        // Register Notification Services
+        // Notifications (in-app) + Email sender (SMTP)
         services.AddScoped<INotificationService, NotificationService>();
+        services.Configure<SmtpEmailSenderOptions>(configuration.GetSection("Email"));
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
 
-        // Register Caching Services
+        // Caching
         services.AddScoped<ICachingService, CachingService>();
 
-        // Configure Session Options
+        // Session options
         services.Configure<SessionOptions>(options =>
         {
             options.DefaultTtl = TimeSpan.FromHours(8);
             options.MaxConcurrentSessions = 5;
             options.InactivityTimeout = TimeSpan.FromHours(2);
         });
+
+        // Hangfire — background job processing via PostgreSQL
+        services.AddHangfire(config => config
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(connectionString)));
+        services.AddHangfireServer();
+
+        // Background job classes — transient so Hangfire creates a fresh instance per invocation
+        services.AddTransient<AppointmentReminderJob>();
+        services.AddTransient<GdprCleanupJob>();
 
         return services;
     }

@@ -944,5 +944,51 @@ public sealed partial class PlatformDbContext : DbContext
 
             entity.HasIndex(x => new { x.TenantId, x.UserId }).IsUnique().HasDatabaseName("ix_tenant_memberships_tenant_user");
         });
+
+        // SupportTicket Configuration
+        modelBuilder.Entity<Domain.Support.SupportTicket>(entity =>
+        {
+            entity.ToTable("support_tickets");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.TicketNumber).HasColumnName("ticket_number").HasMaxLength(30).IsRequired();
+            entity.Property(x => x.UserId).HasColumnName("user_id");
+            entity.Property(x => x.UserType).HasColumnName("user_type").HasMaxLength(50);
+            entity.Property(x => x.Category).HasColumnName("category").HasMaxLength(100);
+            entity.Property(x => x.Subject).HasColumnName("subject").HasMaxLength(300);
+            entity.Property(x => x.Description).HasColumnName("description");
+            entity.Property(x => x.Priority).HasColumnName("priority").HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(30);
+            entity.Property(x => x.AssignedTo).HasColumnName("assigned_to");
+            entity.Property(x => x.AssignedToName).HasColumnName("assigned_to_name").HasMaxLength(200);
+            entity.Property(x => x.RelatedConsultationId).HasColumnName("related_consultation_id");
+            entity.Property(x => x.RelatedBillingId).HasColumnName("related_billing_id");
+            entity.Property(x => x.Resolution).HasColumnName("resolution");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(x => x.AssignedAt).HasColumnName("assigned_at");
+            entity.Property(x => x.ResolvedAt).HasColumnName("resolved_at");
+            entity.Property(x => x.ClosedAt).HasColumnName("closed_at");
+            entity.HasIndex(x => x.UserId).HasDatabaseName("ix_support_tickets_user_id");
+            entity.HasIndex(x => x.Status).HasDatabaseName("ix_support_tickets_status");
+            entity.HasIndex(x => x.TicketNumber).IsUnique().HasDatabaseName("ix_support_tickets_number");
+        });
+
+        // TicketComment Configuration
+        modelBuilder.Entity<Domain.Support.TicketComment>(entity =>
+        {
+            entity.ToTable("ticket_comments");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.TicketId).HasColumnName("ticket_id");
+            entity.Property(x => x.AuthorId).HasColumnName("author_id");
+            entity.Property(x => x.AuthorType).HasColumnName("author_type").HasMaxLength(50);
+            entity.Property(x => x.AuthorName).HasColumnName("author_name").HasMaxLength(200);
+            entity.Property(x => x.Content).HasColumnName("content");
+            entity.Property(x => x.IsInternal).HasColumnName("is_internal");
+            entity.Property(x => x.Attachments).HasColumnName("attachments").HasColumnType("text[]");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.HasIndex(x => x.TicketId).HasDatabaseName("ix_ticket_comments_ticket_id");
+        });
     }
 }

@@ -1,10 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using Telehealth.Platform.Domain.Doctors;
+using Telehealth.Platform.Domain.Identity;
+using Telehealth.Platform.Infrastructure.Persistence;
 
 namespace Telehealth.Platform.Api.Admin;
 
 /// <summary>
-/// Admin operations API endpoints.
+/// Admin operations API endpoints — wired to real DB queries.
 /// </summary>
 public static class AdminEndpoints
 {
@@ -12,422 +16,338 @@ public static class AdminEndpoints
     {
         var admin = app.MapGroup("/admin").WithTags("Admin Operations");
 
-        // User management
         admin.MapGet("/users", GetAllUsersAsync).RequireAuthorization("RequireAdmin");
         admin.MapGet("/users/{userId}", GetUserDetailsAsync).RequireAuthorization("RequireAdmin");
         admin.MapPost("/users/{userId}/suspend", SuspendUserAsync).RequireAuthorization("RequireAdmin");
         admin.MapPost("/users/{userId}/activate", ActivateUserAsync).RequireAuthorization("RequireAdmin");
         admin.MapPost("/users/{userId}/impersonate", ImpersonateUserAsync).RequireAuthorization("RequireAdmin");
 
-        // Doctor management
         admin.MapGet("/doctors", GetAllDoctorsAsync).RequireAuthorization("RequireAdmin");
         admin.MapPost("/doctors/{doctorId}/verify", VerifyDoctorAsync).RequireAuthorization("RequireAdmin");
         admin.MapPost("/doctors/{doctorId}/suspend", SuspendDoctorAsync).RequireAuthorization("RequireAdmin");
 
-        // System settings
         admin.MapGet("/settings", GetSystemSettingsAsync).RequireAuthorization("RequireAdmin");
         admin.MapPut("/settings/{key}", UpdateSettingAsync).RequireAuthorization("RequireAdmin");
 
-        // Reports and analytics
         admin.MapGet("/reports/dashboard", GetDashboardStatsAsync).RequireAuthorization("RequireAdmin");
         admin.MapGet("/reports/consultations", GetConsultationReportAsync).RequireAuthorization("RequireAdmin");
         admin.MapGet("/reports/revenue", GetRevenueReportAsync).RequireAuthorization("RequireAdmin");
 
-        // Audit log
         admin.MapGet("/audit-log", GetAuditLogAsync).RequireAuthorization("RequireAdmin");
 
         return app;
     }
 
     private static async Task<IResult> GetAllUsersAsync(
+        PlatformDbContext db,
         string? search,
         string? type,
         string? status,
-        int? page,
-        int? pageSize)
+        int page = 1,
+        int pageSize = 50)
     {
-        var users = new List<AdminUserDto>
-        {
-            new(
-                Guid.NewGuid(),
-                "john.doe@example.com",
-                "John Doe",
-                "Patient",
-                "Active",
-                DateTimeOffset.UtcNow.AddYears(-1),
-                DateTimeOffset.UtcNow.AddDays(-1))
-        };
+        var query = db.PlatformUsers.AsQueryable();
 
-        return Results.Ok(new { Items = users, TotalCount = users.Count });
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(u => u.Email.Contains(search) ||
+                                     (u.DisplayName != null && u.DisplayName.Contains(search)));
+
+        if (!string.IsNullOrWhiteSpace(type) && Enum.TryParse<UserType>(type, out var userType))
+            query = query.Where(u => u.UserType == userType);
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<UserStatus>(status, out var userStatus))
+            query = query.Where(u => u.Status == userStatus);
+
+        var total = await query.CountAsync();
+        var users = await query
+            .OrderByDescending(u => u.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(u => new AdminUserDto(
+                u.Id,
+                u.Email,
+                u.DisplayName ?? u.Email,
+                u.UserType.ToString(),
+                u.Status.ToString(),
+                u.CreatedAt,
+                u.UpdatedAt))
+            .ToListAsync();
+
+        return Results.Ok(new { Items = users, TotalCount = total, Page = page, PageSize = pageSize });
     }
 
-    private static async Task<IResult> GetUserDetailsAsync(
-        Guid userId)
+    private static async Task<IResult> GetUserDetailsAsync(Guid userId, PlatformDbContext db)
     {
-        var user = new AdminUserDetailDto(
-            userId,
-            "john.doe@example.com",
-            "John Doe",
-            "+1234567890",
-            "United States",
-            "Patient",
-            "Active",
-            true,
-            true,
-            true,
-            DateTimeOffset.UtcNow.AddYears(-1),
-            DateTimeOffset.UtcNow.AddDays(-1),
-            null,
-            15,
-            3,
-            new List<AdminUserAuditDto>
-            {
-                new("Login", DateTimeOffset.UtcNow.AddDays(-1), "Web", "Success")
-            });
+        var user = await db.PlatformUsers.FindAsync(userId);
+        if (user is null) return Results.NotFound(new { Message = "User not found." });
 
-        return Results.Ok(user);
+        var consultationCount = await db.ConsultationBookings
+            .CountAsync(b => b.PatientAccountId == userId);
+
+        var detail = new AdminUserDetailDto(
+            user.Id,
+            user.Email,
+            user.DisplayName ?? user.Email,
+            user.PhoneNumber,
+            user.CountryCode ?? "Unknown",
+            user.UserType.ToString(),
+            user.Status.ToString(),
+            user.EmailConfirmed,
+            user.PhoneNumberConfirmed,
+            user.TwoFactorEnabled,
+            user.CreatedAt,
+            user.UpdatedAt,
+            null,
+            consultationCount,
+            0);
+
+        return Results.Ok(detail);
     }
 
     private static async Task<IResult> SuspendUserAsync(
         Guid userId,
-        SuspendUserRequestDto request)
+        SuspendUserRequestDto request,
+        PlatformDbContext db)
     {
-        return Results.Ok(new
-        {
-            UserId = userId,
-            Status = "Suspended",
-            Reason = request.Reason,
-            SuspendedAt = DateTimeOffset.UtcNow
-        });
+        var user = await db.PlatformUsers.FindAsync(userId);
+        if (user is null) return Results.NotFound(new { Message = "User not found." });
+
+        user.Suspend(request.Reason);
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { UserId = userId, Status = "Suspended", Reason = request.Reason, SuspendedAt = DateTimeOffset.UtcNow });
     }
 
-    private static async Task<IResult> ActivateUserAsync(
-        Guid userId)
+    private static async Task<IResult> ActivateUserAsync(Guid userId, PlatformDbContext db)
     {
-        return Results.Ok(new
-        {
-            UserId = userId,
-            Status = "Active",
-            ActivatedAt = DateTimeOffset.UtcNow
-        });
+        var user = await db.PlatformUsers.FindAsync(userId);
+        if (user is null) return Results.NotFound(new { Message = "User not found." });
+
+        user.Activate();
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { UserId = userId, Status = "Active", ActivatedAt = DateTimeOffset.UtcNow });
     }
 
-    private static async Task<IResult> ImpersonateUserAsync(
-        Guid userId,
-        ClaimsPrincipal user)
+    private static async Task<IResult> ImpersonateUserAsync(Guid userId, ClaimsPrincipal currentUser, PlatformDbContext db)
     {
+        var user = await db.PlatformUsers.FindAsync(userId);
+        if (user is null) return Results.NotFound(new { Message = "User not found." });
+
+        // Real impersonation requires a signed short-lived token; stub for now
         return Results.Ok(new
         {
             UserId = userId,
-            ImpersonationToken = "imp_token_12345",
+            ImpersonationToken = $"imp_{Guid.NewGuid():N}",
             ExpiresAt = DateTimeOffset.UtcNow.AddHours(1),
             Message = "Impersonation session started"
         });
     }
 
     private static async Task<IResult> GetAllDoctorsAsync(
+        PlatformDbContext db,
         string? verificationStatus,
         string? search,
-        int? page,
-        int? pageSize)
+        int page = 1,
+        int pageSize = 50)
     {
-        var doctors = new List<AdminDoctorDto>
-        {
-            new(
-                Guid.NewGuid(),
-                "Dr. Jane Smith",
-                "jane.smith@example.com",
-                "Cardiology",
-                "Verified",
-                "Active",
-                127,
-                4.8,
-                DateTimeOffset.UtcNow.AddYears(-2))
-        };
+        var query = db.DoctorProfiles.AsQueryable();
 
-        return Results.Ok(new { Items = doctors, TotalCount = doctors.Count });
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(d => d.DisplayName.Contains(search));
+
+        if (!string.IsNullOrWhiteSpace(verificationStatus))
+            query = query.Where(d => d.VerificationStatus.ToString() == verificationStatus);
+
+        var total = await query.CountAsync();
+        var doctors = await query
+            .OrderByDescending(d => d.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(d => new AdminDoctorDto(
+                d.Id,
+                d.DisplayName,
+                string.Empty,
+                d.PrimarySpecialty,
+                d.VerificationStatus.ToString(),
+                d.MarketplaceStatus.ToString(),
+                0,
+                0.0,
+                d.CreatedAt))
+            .ToListAsync();
+
+        return Results.Ok(new { Items = doctors, TotalCount = total, Page = page, PageSize = pageSize });
     }
 
-    private static async Task<IResult> VerifyDoctorAsync(
-        Guid doctorId,
-        VerifyDoctorRequestDto request)
+    private static async Task<IResult> VerifyDoctorAsync(Guid doctorId, VerifyDoctorRequestDto request, PlatformDbContext db)
     {
-        return Results.Ok(new
-        {
-            DoctorId = doctorId,
-            Status = "Verified",
-            VerifiedBy = request.AdminId,
-            Notes = request.Notes,
-            VerifiedAt = DateTimeOffset.UtcNow
-        });
+        var doctor = await db.DoctorProfiles.FindAsync(doctorId);
+        if (doctor is null) return Results.NotFound(new { Message = "Doctor not found." });
+
+        doctor.ApproveVerification();
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { DoctorId = doctorId, Status = "Verified", Notes = request.Notes, VerifiedAt = DateTimeOffset.UtcNow });
     }
 
-    private static async Task<IResult> SuspendDoctorAsync(
-        Guid doctorId,
-        SuspendDoctorRequestDto request)
+    private static async Task<IResult> SuspendDoctorAsync(Guid doctorId, SuspendDoctorRequestDto request, PlatformDbContext db)
     {
-        return Results.Ok(new
-        {
-            DoctorId = doctorId,
-            Status = "Suspended",
-            Reason = request.Reason,
-            SuspendedAt = DateTimeOffset.UtcNow
-        });
+        var doctor = await db.DoctorProfiles.FindAsync(doctorId);
+        if (doctor is null) return Results.NotFound(new { Message = "Doctor not found." });
+
+        doctor.UpdateMarketplaceStatus(DoctorMarketplaceStatus.Suspended);
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { DoctorId = doctorId, Status = "Suspended", Reason = request.Reason, SuspendedAt = DateTimeOffset.UtcNow });
     }
 
-    private static async Task<IResult> GetSystemSettingsAsync(
-        string? category)
+    private static IResult GetSystemSettingsAsync(string? category)
     {
-        var settings = new List<SystemSettingDto>
+        var settings = new[]
         {
-            new(
-                "consultation.max_duration",
-                "3600",
-                "int",
-                "Maximum consultation duration in seconds",
-                "Consultation",
-                true),
-            new(
-                "payment.currency",
-                "EUR",
-                "string",
-                "Default currency for payments",
-                "Payment",
-                true),
-            new(
-                "queue.max_wait_minutes",
-                "15",
-                "int",
-                "Maximum wait time for instant queue",
-                "Queue",
-                true)
+            new SystemSettingDto("consultation.max_duration", "3600", "int", "Maximum consultation duration in seconds", "Consultation", true),
+            new SystemSettingDto("payment.currency", "EUR", "string", "Default currency for payments", "Payment", true),
+            new SystemSettingDto("queue.max_wait_minutes", "15", "int", "Maximum wait time for instant queue", "Queue", true),
+            new SystemSettingDto("rate_limit.requests_per_minute", "60", "int", "API rate limit per user per minute", "Security", true),
         };
 
         if (!string.IsNullOrEmpty(category))
-        {
-            settings = settings.Where(s => s.Category == category).ToList();
-        }
+            return Results.Ok(settings.Where(s => s.Category == category));
 
         return Results.Ok(settings);
     }
 
-    private static async Task<IResult> UpdateSettingAsync(
-        string key,
-        UpdateSettingRequestDto request)
+    private static IResult UpdateSettingAsync(string key, UpdateSettingRequestDto request)
     {
-        return Results.Ok(new
-        {
-            Key = key,
-            Value = request.Value,
-            UpdatedAt = DateTimeOffset.UtcNow
-        });
+        // Settings are read-only config for now; persist to DB when SystemSettings entity is wired
+        return Results.Ok(new { Key = key, Value = request.Value, UpdatedAt = DateTimeOffset.UtcNow });
     }
 
     private static async Task<IResult> GetDashboardStatsAsync(
+        PlatformDbContext db,
         DateTimeOffset? from,
         DateTimeOffset? to)
     {
+        var totalUsers = await db.PlatformUsers.CountAsync();
+        var totalPatients = await db.PlatformUsers.CountAsync(u => u.UserType == UserType.Patient);
+        var totalDoctors = await db.DoctorProfiles.CountAsync();
+        var activeDoctors = await db.DoctorProfiles
+            .CountAsync(d => d.MarketplaceStatus.ToString() == "Active");
+        var totalBookings = await db.ConsultationBookings.CountAsync();
+
         var stats = new DashboardStatsDto(
-            1250,
-            347,
-            48,
-            new MoneyDto(45850m, "EUR"),
-            new MoneyDto(18340m, "EUR"),
-            156,
-            12,
-            4.7);
+            TotalUsers: totalUsers,
+            TotalPatients: totalPatients,
+            TotalDoctors: totalDoctors,
+            ActiveDoctors: activeDoctors,
+            TotalBookings: totalBookings);
 
         return Results.Ok(stats);
     }
 
     private static async Task<IResult> GetConsultationReportAsync(
+        PlatformDbContext db,
         DateTimeOffset? from,
         DateTimeOffset? to,
         string? groupBy)
     {
-        var report = new ConsultationReportDto(
-            1250,
-            11800,
-            450,
-            180,
-            new List<SpecialtyStatsDto>
-            {
-                new("Cardiology", 280, 2520),
-                new("General Practice", 450, 3600),
-                new("Mental Health", 180, 1440)
-            });
+        var query = db.ConsultationBookings.AsQueryable();
+        if (from.HasValue) query = query.Where(b => b.CreatedAt >= from.Value);
+        if (to.HasValue) query = query.Where(b => b.CreatedAt <= to.Value);
 
-        return Results.Ok(report);
+        var total = await query.CountAsync();
+        var bySpecialty = await query
+            .GroupBy(b => b.Specialty)
+            .Select(g => new SpecialtyStatsDto(g.Key, g.Count()))
+            .ToListAsync();
+
+        return Results.Ok(new ConsultationReportDto(total, bySpecialty));
     }
 
     private static async Task<IResult> GetRevenueReportAsync(
+        PlatformDbContext db,
         DateTimeOffset? from,
         DateTimeOffset? to,
         string? groupBy)
     {
-        var report = new RevenueReportDto(
-            45850m,
-            9170m,
-            36680m,
-            27410m,
-            new List<DailyRevenueDto>
-            {
-                new(DateTimeOffset.UtcNow.AddDays(-6), 6500m, 1300m),
-                new(DateTimeOffset.UtcNow.AddDays(-5), 7200m, 1440m),
-                new(DateTimeOffset.UtcNow.AddDays(-4), 6800m, 1360m),
-                new(DateTimeOffset.UtcNow.AddDays(-3), 7500m, 1500m),
-                new(DateTimeOffset.UtcNow.AddDays(-2), 8100m, 1620m),
-                new(DateTimeOffset.UtcNow.AddDays(-1), 8850m, 1770m),
-                new(DateTimeOffset.UtcNow, 900m, 180m)
-            });
+        // BillingSession has no date field; return aggregate over all finalized sessions
+        var sessions = await db.BillingSessions
+            .Where(b => b.Status == Domain.Billing.BillingSessionStatus.Finalized)
+            .ToListAsync();
+        var grossMinor = sessions.Sum(s => s.GrossAmount?.MinorUnits ?? 0);
+        var feeMinor = sessions.Sum(s => s.PlatformFee?.MinorUnits ?? 0);
+        var payoutMinor = sessions.Sum(s => s.DoctorEarning?.MinorUnits ?? 0);
 
-        return Results.Ok(report);
+        return Results.Ok(new RevenueReportDto(
+            TotalRevenueEur: grossMinor / 100m,
+            PlatformFeesEur: feeMinor / 100m,
+            PayoutsEur: payoutMinor / 100m,
+            SessionCount: sessions.Count));
     }
 
     private static async Task<IResult> GetAuditLogAsync(
+        PlatformDbContext db,
         string? operationType,
         Guid? adminId,
         string? targetType,
         DateTimeOffset? from,
         DateTimeOffset? to,
-        int? page,
-        int? pageSize)
+        int page = 1,
+        int pageSize = 50)
     {
-        var entries = new List<AuditLogEntryDto>
-        {
-            new(
-                Guid.NewGuid(),
-                Guid.NewGuid(),
-                "Admin User",
-                "SuspendUser",
-                "User",
-                Guid.NewGuid().ToString(),
-                "Violation of terms",
-                true,
-                DateTimeOffset.UtcNow.AddHours(-2))
-        };
+        var query = db.AuditEvents.AsQueryable();
 
-        return Results.Ok(new { Items = entries, TotalCount = entries.Count });
+        if (!string.IsNullOrEmpty(operationType))
+            query = query.Where(e => e.Action.Contains(operationType));
+        if (adminId.HasValue)
+            query = query.Where(e => e.ActorId == adminId.Value.ToString());
+        if (!string.IsNullOrEmpty(targetType))
+            query = query.Where(e => e.TargetType == targetType);
+        if (from.HasValue) query = query.Where(e => e.OccurredAt >= from.Value);
+        if (to.HasValue) query = query.Where(e => e.OccurredAt <= to.Value);
+
+        var total = await query.CountAsync();
+        var entries = await query
+            .OrderByDescending(e => e.OccurredAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(e => new AuditLogEntryDto(
+                e.Id,
+                e.ActorId,
+                e.ActorType,
+                e.Action,
+                e.TargetType,
+                e.TargetId,
+                e.OccurredAt))
+            .ToListAsync();
+
+        return Results.Ok(new { Items = entries, TotalCount = total, Page = page, PageSize = pageSize });
     }
 
     private static Guid? GetUserId(ClaimsPrincipal user)
     {
-        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? user.FindFirst("sub")?.Value;
-
-        if (Guid.TryParse(userIdClaim, out var userId))
-        {
-            return userId;
-        }
-
-        return null;
+        var raw = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value;
+        return Guid.TryParse(raw, out var id) ? id : null;
     }
 }
 
 // DTOs
-public record MoneyDto(decimal Amount, string Currency);
-
-public record AdminUserDto(
-    Guid Id,
-    string Email,
-    string Name,
-    string UserType,
-    string Status,
-    DateTimeOffset CreatedAt,
-    DateTimeOffset LastLoginAt);
+public record AdminUserDto(Guid Id, string Email, string Name, string UserType, string Status, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 
 public record AdminUserDetailDto(
-    Guid Id,
-    string Email,
-    string Name,
-    string? Phone,
-    string Country,
-    string UserType,
-    string Status,
-    bool EmailVerified,
-    bool PhoneVerified,
-    bool TwoFactorEnabled,
-    DateTimeOffset CreatedAt,
-    DateTimeOffset LastLoginAt,
-    DateTimeOffset? LastPasswordChangeAt,
-    int TotalConsultations,
-    int TotalTickets,
-    List<AdminUserAuditDto> RecentActivity);
-
-public record AdminUserAuditDto(
-    string Action,
-    DateTimeOffset Timestamp,
-    string? IpAddress,
-    string Status);
+    Guid Id, string Email, string Name, string? Phone, string Country,
+    string UserType, string Status, bool EmailVerified, bool PhoneVerified,
+    bool TwoFactorEnabled, DateTimeOffset CreatedAt, DateTimeOffset LastUpdatedAt,
+    DateTimeOffset? LastPasswordChangeAt, int TotalConsultations, int TotalTickets);
 
 public record SuspendUserRequestDto(string Reason, int? SuspensionDays);
-
-public record AdminDoctorDto(
-    Guid Id,
-    string DisplayName,
-    string Email,
-    string PrimarySpecialty,
-    string VerificationStatus,
-    string MarketplaceStatus,
-    int ConsultationsCompleted,
-    double Rating,
-    DateTimeOffset JoinedAt);
-
+public record AdminDoctorDto(Guid Id, string DisplayName, string Email, string PrimarySpecialty, string VerificationStatus, string MarketplaceStatus, int ConsultationsCompleted, double Rating, DateTimeOffset JoinedAt);
 public record VerifyDoctorRequestDto(Guid AdminId, string Notes);
-
 public record SuspendDoctorRequestDto(string Reason);
-
-public record SystemSettingDto(
-    string Key,
-    string Value,
-    string ValueType,
-    string? Description,
-    string Category,
-    bool IsActive);
-
+public record SystemSettingDto(string Key, string Value, string ValueType, string? Description, string Category, bool IsActive);
 public record UpdateSettingRequestDto(string Value, string? Reason);
-
-public record DashboardStatsDto(
-    int TotalUsers,
-    int TotalConsultations,
-    int ActiveDoctors,
-    MoneyDto TotalRevenue,
-    MoneyDto TotalPayouts,
-    int OpenTickets,
-    int PendingVerifications,
-    double AverageRating);
-
-public record ConsultationReportDto(
-    int TotalConsultations,
-    int TotalMinutes,
-    int UniquePatients,
-    int UniqueDoctors,
-    List<SpecialtyStatsDto> BySpecialty);
-
-public record SpecialtyStatsDto(
-    string Specialty,
-    int ConsultationCount,
-    int TotalMinutes);
-
-public record RevenueReportDto(
-    decimal TotalRevenue,
-    decimal TotalPlatformFees,
-    decimal TotalPayouts,
-    decimal NetRevenue,
-    List<DailyRevenueDto> DailyBreakdown);
-
-public record DailyRevenueDto(
-    DateTimeOffset Date,
-    decimal Revenue,
-    decimal PlatformFees);
-
-public record AuditLogEntryDto(
-    Guid Id,
-    Guid AdminId,
-    string AdminName,
-    string OperationType,
-    string TargetType,
-    string TargetId,
-    string? Reason,
-    bool Success,
-    DateTimeOffset Timestamp);
+public record DashboardStatsDto(int TotalUsers, int TotalPatients, int TotalDoctors, int ActiveDoctors, int TotalBookings);
+public record ConsultationReportDto(int TotalConsultations, List<SpecialtyStatsDto> BySpecialty);
+public record SpecialtyStatsDto(string Specialty, int Count);
+public record RevenueReportDto(decimal TotalRevenueEur, decimal PlatformFeesEur, decimal PayoutsEur, int SessionCount);
+public record AuditLogEntryDto(Guid Id, string ActorId, string ActorType, string Action, string TargetType, string TargetId, DateTimeOffset OccurredAt);
