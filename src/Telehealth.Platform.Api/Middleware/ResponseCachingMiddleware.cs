@@ -31,14 +31,26 @@ public class ResponseCachingMiddleware
             return;
         }
 
+        var originalBody = context.Response.Body;
         var responseBody = new HttpResponseBodyStream(context.Response);
         context.Response.Body = responseBody;
 
-        await _next(context);
-
-        if (context.Response.StatusCode == 200)
+        try
         {
-            context.Response.Headers["Cache-Control"] = "public, max-age=300";
+            await _next(context);
+
+            if (context.Response.StatusCode == 200)
+            {
+                context.Response.Headers["Cache-Control"] = "public, max-age=300";
+            }
+
+            // Copy buffered response back to the original stream
+            context.Response.Body = originalBody;
+            await responseBody.CopyToAsync(context.Response);
+        }
+        finally
+        {
+            context.Response.Body = originalBody;
         }
     }
 
