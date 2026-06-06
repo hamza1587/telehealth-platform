@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Telehealth.Platform.Api.Admin;
 using Telehealth.Platform.Api.Analytics;
 using Telehealth.Platform.Api.Appointments;
+using Telehealth.Platform.Api.Payouts;
+using Telehealth.Platform.Api.PMS;
 using Telehealth.Platform.Api.Billing;
 using Telehealth.Platform.Api.Clinical;
 using Telehealth.Platform.Api.Compliance;
@@ -61,6 +63,11 @@ builder.Services.AddHealthChecks()
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddMedplumIntegration(builder.Configuration);
+
+// Payouts + PMS (stub repos — replace with EF Core implementations in Infrastructure)
+builder.Services.AddSingleton<StripeConnectService>();
+builder.Services.AddSingleton<IPayoutRepository, InMemoryPayoutRepository>();
+builder.Services.AddSingleton<IPmsRepository, InMemoryPmsRepository>();
 
 // Rate limiting — fixed windows: 100 req/min general, 10 req/min for auth routes
 var rlSection = builder.Configuration.GetSection("RateLimit");
