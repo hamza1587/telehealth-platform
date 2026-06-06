@@ -1,0 +1,107 @@
+# Kubernetes Ingress — nginx-ingress-controller with TLS, HSTS, and rate limiting
+# Prerequisites:
+#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+#   cert-manager installed and ClusterIssuer "letsencrypt-prod" configured
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: telehealth-ingress
+  namespace: telehealth
+  annotations:
+    # TLS + redirect
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+    # HSTS (1 year + preload)
+    nginx.ingress.kubernetes.io/hsts: "true"
+    nginx.ingress.kubernetes.io/hsts-max-age: "31536000"
+    nginx.ingress.kubernetes.io/hsts-include-subdomains: "true"
+    nginx.ingress.kubernetes.io/hsts-preload: "true"
+
+    # Rate limiting at ingress level (backs up the app-layer rate limiter)
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "25"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+
+    # Remove server header
+    nginx.ingress.kubernetes.io/server-snippet: |
+      more_clear_headers Server;
+      server_tokens off;
+
+    # Security headers for API routes
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Frame-Options "DENY" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+      add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()" always;
+
+    # cert-manager TLS provisioning
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+    # Upload size limit (prescriptions / documents)
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+
+    # Timeouts (video consultation WebSocket keep-alive)
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.telehealth.eu
+        - app.telehealth.eu
+      secretName: telehealth-tls-cert
+  rules:
+    # API backend
+    - host: api.telehealth.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: telehealth-platform-service
+                port:
+                  number: 80
+
+    # Frontend (Vite SPA served by nginx)
+    - host: app.telehealth.eu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: telehealth-frontend
+                port:
+                  number: 80
+---
+# Separate ingress for Hangfire dashboard — restricted to cluster-internal IPs only
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: telehealth-hangfire-ingress
+  namespace: telehealth
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ops.telehealth.eu
+      secretName: telehealth-ops-tls-cert
+  rules:
+    - host: ops.telehealth.eu
+      http:
+        paths:
+          - path: /hangfire
+            pathType: Prefix
+            backend:
+              service:
+                name: telehealth-platform-service
+                port:
+                  number: 80

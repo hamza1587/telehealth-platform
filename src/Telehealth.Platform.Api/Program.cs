@@ -36,14 +36,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
+// CORS — origins from config; falls back to localhost for development
+var allowedOrigins = builder.Configuration
+    .GetSection("Security:AllowedOrigins")
+    .Get<string[]>() ?? ["http://localhost:5173"];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("WebClient", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173")
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+            .WithOrigins(allowedOrigins)
+            .WithHeaders("Content-Type", "Authorization", "X-Correlation-ID", "Accept", "Origin")
+            .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+            .AllowCredentials();
     });
 });
 
@@ -96,6 +102,16 @@ using (var scope = app.Services.CreateScope())
 
 // Global exception handler must be outermost middleware so it catches all errors
 app.UseMiddleware<GlobalExceptionMiddleware>();
+
+// Security headers on every response (before CORS so they cover preflight too)
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
+// Input sanitization — reject clearly malicious query-string values early
+app.UseMiddleware<InputSanitizationMiddleware>();
+
+// HSTS in production (also set via SecurityHeadersMiddleware but UseHsts adds the ASP.NET defaults)
+if (!app.Environment.IsDevelopment())
+    app.UseHsts();
 
 app.UseHttpsRedirection();
 app.UseCors("WebClient");
